@@ -425,9 +425,10 @@ elif section == "Грамматика":
             opts=["am","is","are"]
             why=f"С местоимением {subject} используется форма {form}."
         elif idx==1:
-            sentence=f"Выбери местоимение для «{ru}» в предложении: ___ work here."
+            pronoun_ru={"I":"я","you":"ты / вы","he":"он","she":"она","it":"оно / это","we":"мы","they":"они"}
+            sentence=f"Какое английское местоимение означает «{pronoun_ru[subject]}»?"
             answer=subject
-            opts=["I","he","she","we","they","you"]
+            opts=["I","you","he","she","it","we","they"]
             why=f"Правильное местоимение: {subject}."
         elif idx==2:
             sentence=f"{subject.capitalize()} ___ {['a car','a job','time','a passport','a question'][n%5]}."
@@ -502,7 +503,7 @@ elif section == "Грамматика":
             task={"answer":good,"why":f"Правильный вариант: {good}"}
             answer_type="text"
         elif chosen_type=="Вопросительная форма":
-            if idx==0: good=f"Is {subj} ready?" if subj in ("he","she","it") else f"Are {subj} ready?"
+            if idx==0: good=f"Am I ready?" if subj=="I" else (f"Are {subj} ready?" if subj in ("you","we","they") else f"Is {subj} ready?")
             elif idx==2: good=f"Does {subj} have a car?" if subj in ("he","she","it") else f"Do {subj} have a car?"
             elif idx==3: good=f"Does {subj} work every day?" if subj in ("he","she","it") else f"Do {subj} work every day?"
             elif idx==4: good=f"Is {subj} working now?" if subj in ("he","she","it") else (f"Am {subj} working now?" if subj=="I" else f"Are {subj} working now?")
