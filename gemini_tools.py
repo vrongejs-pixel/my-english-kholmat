@@ -1,5 +1,6 @@
 """Gemini integration for MY ENGLISH. API keys are read only from Streamlit secrets/env."""
 import os
+import time
 import streamlit as st
 
 
@@ -28,24 +29,43 @@ def ask_gemini(prompt, system_instruction=None, model="gemini-3.8-flash"):
     client, error = get_client()
     if error:
         return None, error
-    try:
-        response = client.models.generate_content(
-            model=model,
-            contents=prompt,
-            config={
-                "system_instruction": system_instruction or (
-                    "You are MY ENGLISH, a patient professional English tutor. "
-                    "Explain in Russian. Use natural modern English. Match the learner's level. "
-                    "Never invent a learner's answers or claim an answer is correct without checking it."
-                ),
-                "temperature": 0.7,
-            },
-        )
-        answer = (getattr(response, "text", None) or "").strip()
-        return (answer, None) if answer else (None, "Gemini вернул пустой ответ. Попробуй ещё раз.")
-    except Exception as exc:
-        return None, f"Ошибка Gemini API: {exc}"
 
+    config = {
+        "system_instruction": system_instruction or (
+            "You are MY ENGLISH, a patient professional English tutor. "
+            "Explain in Russian. Use natural modern English. Match the learner's level. "
+            "Never invent a learner's answers or claim an answer is correct without checking it."
+        ),
+        "temperature": 0.7,
+    }
+
+    # 503/UNAVAILABLE обычно означает временную перегрузку сервиса.
+    # Делаем до трёх попыток с короткой паузой, не меняя модель и не расходуя ключ повторно.
+    for attempt, delay in enumerate((0, 2, 5), start=1):
+        if delay:
+            time.sleep(delay)
+        try:
+            response = client.models.generate_content(
+                model=model,
+                contents=prompt,
+                config=config,
+            )
+            answer = (getattr(response, "text", None) or "").strip()
+            return (answer, None) if answer else (None, "Gemini вернул пустой ответ. Попробуй ещё раз.")
+        except Exception as exc:
+            message = str(exc)
+            temporary = any(token in message.upper() for token in ("503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED"))
+            if temporary and attempt < 3:
+                continue
+            if temporary:
+                return None, (
+                    "Gemini сейчас перегружен или временно ограничивает запросы. "
+                    "Автоматически выполнены 3 попытки, но сервис пока не ответил. "
+                    "Подожди минуту и попробуй ещё раз. Это не означает, что API-ключ неверный."
+                )
+            return None, f"Ошибка Gemini API: {message}"
+
+    return None, "Gemini временно не ответил. Попробуй ещё раз позже."
 
 def grammar_exercise(topic, level, count, exercise_type, known_words=""):
     prompt = f"""
