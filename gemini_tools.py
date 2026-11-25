@@ -24,7 +24,7 @@ def get_client():
         return None, f"Не удалось загрузить Gemini SDK: {exc}"
 
 
-def ask_gemini(prompt, system_instruction=None, model="gemini-2.5-flash"):
+def ask_gemini(prompt, system_instruction=None, model="gemini-3.8-flash"):
     client, error = get_client()
     if error:
         return None, error
