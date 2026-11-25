@@ -206,7 +206,7 @@ elif section == "Карточки слов":
     st.subheader("Карточки слов")
     st.caption(f"В большом каталоге {len(CORE_VOCABULARY):,} слов. Выбирай нужные группы и учи их в обоих направлениях.")
     decks=get_decks()
-    labels=["Большой словарь (2 877 слов)","Мой базовый набор (361 слово)"]+[f"Мой сборник: {name}" for _,name in decks]
+    labels=["Большой словарь (2 877 слов, включая слова для проверки)","Мой базовый набор (361 слово)"]+[f"Мой сборник: {name}" for _,name in decks]
     source=st.selectbox("Источник карточек",labels,key="flash_deck")
 
     selected_pos=[]
