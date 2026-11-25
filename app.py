@@ -212,14 +212,14 @@ elif section == "Карточки слов":
     selected_pos=[]
     selected_bands=[]
     if source=="Большой словарь (2 877 слов)":
-        all_pos=sorted({x["part_of_speech"] for x in CORE_VOCABULARY})
+        all_pos=sorted({p for x in CORE_VOCABULARY for p in x["part_of_speech"]})
         all_bands=list(dict.fromkeys(x["frequency_band"] for x in CORE_VOCABULARY))
         selected_pos=st.multiselect("Группы по частям речи",all_pos,default=all_pos,key="core_pos_filter")
         selected_bands=st.multiselect("Частотные группы",all_bands,default=all_bands,key="core_band_filter")
         words=[
-            (i,x["word"],x["translation"],x.get("ipa",""),x.get("example",""),x.get("example_ru",""),x["part_of_speech"])
+            (i,x["word"],x["translation"],x.get("ipa",""),x.get("example",""),x.get("example_ru",""),", ".join(x["part_of_speech"]),x.get("verb_forms",{}))
             for i,x in enumerate(CORE_VOCABULARY)
-            if x["part_of_speech"] in selected_pos and x["frequency_band"] in selected_bands
+            if set(x["part_of_speech"]).intersection(selected_pos) and x["frequency_band"] in selected_bands
         ]
     elif source=="Мой базовый набор (361 слово)":
         categories=st.multiselect("Группы слов",list(VOCABULARY.keys()),default=list(VOCABULARY.keys()),key="flash_categories")
@@ -265,6 +265,11 @@ elif section == "Карточки слов":
                 st.rerun()
         else:
             if pronunciation: st.write(f"**Транскрипция / произношение:** {pronunciation}")
+            verb_forms=w[7] if len(w)>7 and isinstance(w[7],dict) else {}
+            if verb_forms:
+                v2=", ".join(verb_forms.get("V2",[])) or "—"
+                v3=", ".join(verb_forms.get("V3",[])) or "—"
+                st.info(f"**Формы глагола:** V1 {verb_forms.get('V1',english)} · V2 {v2} · V3 {v3}")
             if example: st.write(f"**Пример:** {example}")
             if example_ru: st.caption(example_ru)
             a,b=st.columns(2)
@@ -295,9 +300,9 @@ elif section == "Словарный каталог":
     c1,c2=st.columns(2)
     with c1: pos_filter=st.multiselect("Часть речи",all_pos,default=all_pos,key="catalog_pos")
     with c2: band_filter=st.multiselect("Частотная группа",all_bands,default=all_bands,key="catalog_band")
-    matches=[x for x in CORE_VOCABULARY if x["part_of_speech"] in pos_filter and x["frequency_band"] in band_filter and (not search or search in x["word"].lower() or search in x["translation"].lower())]
+    matches=[x for x in CORE_VOCABULARY if set(x["part_of_speech"]).intersection(pos_filter) and x["frequency_band"] in band_filter and (not search or search in x["word"].lower() or search in x["translation"].lower())]
     st.metric("Найдено слов",f"{len(matches):,}")
-    st.dataframe([{"English":x["word"],"Перевод":x["translation"],"Транскрипция":x.get("ipa",""),"Часть речи":x["part_of_speech"],"Частотная группа":x["frequency_band"]} for x in matches[:150]],use_container_width=True,hide_index=True)
+    st.dataframe([{"English":x["word"],"Перевод":x["translation"],"Транскрипция":x.get("ipa",""),"Часть речи":", ".join(x["part_of_speech"]),"Частотная группа":x["frequency_band"]} for x in matches[:150]],use_container_width=True,hide_index=True)
     if len(matches)>150: st.caption("Показаны первые 150 результатов. Уточни поиск или фильтры, чтобы увидеть нужные слова.")
     import csv
     import io
@@ -305,7 +310,7 @@ elif section == "Словарный каталог":
     writer=csv.DictWriter(buffer,fieldnames=["English","Russian","IPA","Part of speech","Frequency group"])
     writer.writeheader()
     for x in matches:
-        writer.writerow({"English":x["word"],"Russian":x["translation"],"IPA":x.get("ipa",""),"Part of speech":x["part_of_speech"],"Frequency group":x["frequency_band"]})
+        writer.writerow({"English":x["word"],"Russian":x["translation"],"IPA":x.get("ipa",""),"Part of speech":", ".join(x["part_of_speech"]),"Frequency group":x["frequency_band"]})
     st.download_button("Скачать выбранные слова в CSV",buffer.getvalue().encode("utf-8-sig"),file_name="my_english_vocabulary.csv",mime="text/csv",use_container_width=True)
 
 elif section == "Мои сборники":
