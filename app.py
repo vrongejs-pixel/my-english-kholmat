@@ -211,7 +211,7 @@ elif section == "Карточки слов":
 
     selected_pos=[]
     selected_bands=[]
-    if source=="Большой словарь (2 877 слов)":
+    if source.startswith("Большой словарь ("):
         all_pos=sorted({p for x in CORE_VOCABULARY for p in x["part_of_speech"]})
         all_bands=list(dict.fromkeys(x["frequency_band"] for x in CORE_VOCABULARY))
         selected_pos=st.multiselect("Группы по частям речи",all_pos,default=all_pos,key="core_pos_filter")
@@ -295,7 +295,7 @@ elif section == "Словарный каталог":
     st.subheader("Большой словарный каталог")
     st.caption("Поиск по английскому слову и русскому переводу. Частотные группы показывают порядок изучения, а не официальный уровень CEFR.")
     search=st.text_input("Найти слово или перевод",placeholder="Например: work, работа, travel…",key="catalog_search").strip().lower()
-    all_pos=sorted({x["part_of_speech"] for x in CORE_VOCABULARY})
+    all_pos=sorted({part for x in CORE_VOCABULARY for part in x["part_of_speech"]})
     all_bands=list(dict.fromkeys(x["frequency_band"] for x in CORE_VOCABULARY))
     c1,c2=st.columns(2)
     with c1: pos_filter=st.multiselect("Часть речи",all_pos,default=all_pos,key="catalog_pos")
