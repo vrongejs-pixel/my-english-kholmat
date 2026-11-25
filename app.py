@@ -1,3 +1,4 @@
+import json
 import random
 import sqlite3
 from pathlib import Path
@@ -7,6 +8,8 @@ APP_DIR = Path(__file__).parent
 DB_PATH = APP_DIR / "my_english_progress.db"
 
 from vocabulary_data import VOCABULARY
+
+CORE_VOCABULARY = json.loads((APP_DIR / "core_vocabulary.json").read_text(encoding="utf-8"))
 
 BASE_WORDS = [
     (word[0], word[1], category)
@@ -187,7 +190,7 @@ for k,v in defaults.items():
 
 st.title("📘 MY ENGLISH")
 st.caption("Метод Холмата · Английский для жизни и работы")
-st.sidebar.radio("Разделы", ["Главная","Карточки слов","Мои сборники","Проверка слов","Грамматика","Жизненные ситуации","Конструктор заданий","Мой прогресс"], key="nav_choice", on_change=navigate, index=["Главная","Карточки слов","Мои сборники","Проверка слов","Грамматика","Жизненные ситуации","Конструктор заданий","Мой прогресс"].index(st.session_state.section))
+st.sidebar.radio("Разделы", ["Главная","Карточки слов","Словарный каталог","Мои сборники","Проверка слов","Грамматика","Жизненные ситуации","Конструктор заданий","Мой прогресс"], key="nav_choice", on_change=navigate, index=["Главная","Карточки слов","Словарный каталог","Мои сборники","Проверка слов","Грамматика","Жизненные ситуации","Конструктор заданий","Мой прогресс"].index(st.session_state.section))
 section = st.session_state.section
 
 if section == "Главная":
@@ -201,33 +204,43 @@ if section == "Главная":
 
 elif section == "Карточки слов":
     st.subheader("Карточки слов")
+    st.caption(f"В большом каталоге {len(CORE_VOCABULARY):,} слов. Выбирай нужные группы и учи их в обоих направлениях.")
     decks=get_decks()
-    labels=["Базовый словарь A1"]+[f"Мой сборник: {name}" for _,name in decks]
-    source=st.selectbox("Сборник",labels,key="flash_deck")
-    if source=="Базовый словарь A1":
-        words=[(i,e,r,c) for i,(e,r,c) in enumerate(BASE_WORDS)]
+    labels=["Большой словарь (2 877 слов)","Мой базовый набор (361 слово)"]+[f"Мой сборник: {name}" for _,name in decks]
+    source=st.selectbox("Источник карточек",labels,key="flash_deck")
+
+    selected_pos=[]
+    selected_bands=[]
+    if source=="Большой словарь (2 877 слов)":
+        all_pos=sorted({x["part_of_speech"] for x in CORE_VOCABULARY})
+        all_bands=list(dict.fromkeys(x["frequency_band"] for x in CORE_VOCABULARY))
+        selected_pos=st.multiselect("Группы по частям речи",all_pos,default=all_pos,key="core_pos_filter")
+        selected_bands=st.multiselect("Частотные группы",all_bands,default=all_bands,key="core_band_filter")
+        words=[
+            (i,x["word"],x["translation"],x.get("ipa",""),x.get("example",""),x.get("example_ru",""),x["part_of_speech"])
+            for i,x in enumerate(CORE_VOCABULARY)
+            if x["part_of_speech"] in selected_pos and x["frequency_band"] in selected_bands
+        ]
+    elif source=="Мой базовый набор (361 слово)":
+        categories=st.multiselect("Группы слов",list(VOCABULARY.keys()),default=list(VOCABULARY.keys()),key="flash_categories")
+        words=[(i,*word,category) for i,(category,items) in enumerate(VOCABULARY.items()) if category in categories for word in items]
     else:
         name=source.replace("Мой сборник: ","",1)
         did=next((i for i,n in decks if n==name),None)
-        words=get_words(did) if did else []
+        words=[(row[0],row[1],row[2],"","","",row[3]) for row in (get_words(did) if did else [])]
+
     direction=st.radio("Лицевая сторона",["Английский → Русский","Русский → Английский","Смешанный режим"],horizontal=True,key="flash_direction")
-    if source=="Базовый словарь A1":
-        categories=st.multiselect("Группы слов",list(VOCABULARY.keys()),default=list(VOCABULARY.keys()),key="flash_categories")
-        selected=[(i,*word) for i,(category,items) in enumerate(VOCABULARY.items()) if category in categories for word in items]
-        words=selected
-    else:
-        words=[(row[0],row[1],row[2],"","") for row in words]
     if not words:
         st.warning("Выбери хотя бы одну группу или добавь слова в свой сборник.")
     else:
-        signature=(source,direction,tuple(st.session_state.get("flash_categories",[])))
+        signature=(source,direction,tuple(selected_pos),tuple(selected_bands),tuple(st.session_state.get("flash_categories",[])))
         if st.session_state.get("flash_signature")!=signature:
             st.session_state.flash_signature=signature
             st.session_state.card_index=0
             st.session_state.card_revealed=False
+            st.session_state.flash_card_signature=None
         st.session_state.card_index%=len(words)
         w=words[st.session_state.card_index]
-        # Fix the mixed direction for the current card; do not randomize it on reruns.
         if st.session_state.get("flash_card_signature") != (signature,st.session_state.card_index):
             actual=random.choice(["Английский → Русский","Русский → Английский"]) if direction=="Смешанный режим" else direction
             st.session_state.flash_actual_direction=actual
@@ -237,8 +250,9 @@ elif section == "Карточки слов":
         pronunciation=w[3] if len(w)>3 else ""
         example=w[4] if len(w)>4 else ""
         example_ru=w[5] if len(w)>5 else ""
+        group=w[6] if len(w)>6 else "Словарь"
         front,back=(english,russian) if actual=="Английский → Русский" else (russian,english)
-        st.caption(f"Направление: {actual} · Группа: {w[3] if len(w)==4 else 'Словарь'}")
+        st.caption(f"Направление: {actual} · Часть речи: {group}")
         st.progress((st.session_state.card_index+1)/len(words),text=f"Карточка {st.session_state.card_index+1} из {len(words)}")
         st.markdown(f"""<div style="background:linear-gradient(135deg,#ffffff 0%,#edf4ff 100%);border:1px solid #d9e5f5;border-radius:22px;padding:44px 20px;text-align:center;margin:16px 0;box-shadow:0 12px 30px rgba(26,60,110,.08)">
         <div style="font-size:12px;letter-spacing:.14em;color:#64748b;font-weight:700">MY ENGLISH · VOCABULARY</div>
@@ -250,7 +264,7 @@ elif section == "Карточки слов":
                 st.session_state.card_revealed=True
                 st.rerun()
         else:
-            if pronunciation: st.write(f"**Произношение:** {pronunciation}")
+            if pronunciation: st.write(f"**Транскрипция / произношение:** {pronunciation}")
             if example: st.write(f"**Пример:** {example}")
             if example_ru: st.caption(example_ru)
             a,b=st.columns(2)
@@ -266,11 +280,33 @@ elif section == "Карточки слов":
                 st.session_state.card_revealed=False
                 st.session_state.flash_card_signature=None
                 st.rerun()
-        st.caption(f"Знаю: {st.session_state.known_count} · На повторение: {len(st.session_state.repeat_words)}")
+        st.caption(f"Знаю в этой сессии: {st.session_state.known_count} · На повторение: {len(st.session_state.repeat_words)}")
         if st.session_state.repeat_words:
             with st.expander("Слова для повторения"):
                 for en,ru in st.session_state.repeat_words:
                     st.write(f"**{en}** — {ru}")
+
+elif section == "Словарный каталог":
+    st.subheader("Большой словарный каталог")
+    st.caption("Поиск по английскому слову и русскому переводу. Частотные группы показывают порядок изучения, а не официальный уровень CEFR.")
+    search=st.text_input("Найти слово или перевод",placeholder="Например: work, работа, travel…",key="catalog_search").strip().lower()
+    all_pos=sorted({x["part_of_speech"] for x in CORE_VOCABULARY})
+    all_bands=list(dict.fromkeys(x["frequency_band"] for x in CORE_VOCABULARY))
+    c1,c2=st.columns(2)
+    with c1: pos_filter=st.multiselect("Часть речи",all_pos,default=all_pos,key="catalog_pos")
+    with c2: band_filter=st.multiselect("Частотная группа",all_bands,default=all_bands,key="catalog_band")
+    matches=[x for x in CORE_VOCABULARY if x["part_of_speech"] in pos_filter and x["frequency_band"] in band_filter and (not search or search in x["word"].lower() or search in x["translation"].lower())]
+    st.metric("Найдено слов",f"{len(matches):,}")
+    st.dataframe([{"English":x["word"],"Перевод":x["translation"],"Транскрипция":x.get("ipa",""),"Часть речи":x["part_of_speech"],"Частотная группа":x["frequency_band"]} for x in matches[:150]],use_container_width=True,hide_index=True)
+    if len(matches)>150: st.caption("Показаны первые 150 результатов. Уточни поиск или фильтры, чтобы увидеть нужные слова.")
+    import csv
+    import io
+    buffer=io.StringIO()
+    writer=csv.DictWriter(buffer,fieldnames=["English","Russian","IPA","Part of speech","Frequency group"])
+    writer.writeheader()
+    for x in matches:
+        writer.writerow({"English":x["word"],"Russian":x["translation"],"IPA":x.get("ipa",""),"Part of speech":x["part_of_speech"],"Frequency group":x["frequency_band"]})
+    st.download_button("Скачать выбранные слова в CSV",buffer.getvalue().encode("utf-8-sig"),file_name="my_english_vocabulary.csv",mime="text/csv",use_container_width=True)
 
 elif section == "Мои сборники":
     st.subheader("Конструктор словарных сборников")
