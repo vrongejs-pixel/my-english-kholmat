@@ -8,6 +8,7 @@ APP_DIR = Path(__file__).parent
 DB_PATH = APP_DIR / "my_english_progress.db"
 
 from vocabulary_data import VOCABULARY
+from gemini_tools import grammar_exercise, check_english, roleplay_reply, create_vocabulary_examples, get_api_key
 
 CORE_VOCABULARY = json.loads((APP_DIR / "core_vocabulary.json").read_text(encoding="utf-8"))
 
@@ -190,7 +191,7 @@ for k,v in defaults.items():
 
 st.title("📘 MY ENGLISH")
 st.caption("Метод Холмата · Английский для жизни и работы")
-st.sidebar.radio("Разделы", ["Главная","Карточки слов","Словарный каталог","Мои сборники","Проверка слов","Грамматика","Жизненные ситуации","Конструктор заданий","Мой прогресс"], key="nav_choice", on_change=navigate, index=["Главная","Карточки слов","Словарный каталог","Мои сборники","Проверка слов","Грамматика","Жизненные ситуации","Конструктор заданий","Мой прогресс"].index(st.session_state.section))
+st.sidebar.radio("Разделы", ["Главная","Карточки слов","Словарный каталог","Мои сборники","Проверка слов","Грамматика","Жизненные ситуации","AI-наставник","Конструктор заданий","Мой прогресс"], key="nav_choice", on_change=navigate, index=["Главная","Карточки слов","Словарный каталог","Мои сборники","Проверка слов","Грамматика","Жизненные ситуации","AI-наставник","Конструктор заданий","Мой прогресс"].index(st.session_state.section))
 section = st.session_state.section
 
 if section == "Главная":
@@ -387,7 +388,22 @@ elif section == "Грамматика":
     if fb and fb[0:2]==(idx,qidx):
         if fb[2]: st.success("Правильно! "+fb[4])
         else: st.error(f"Неверно. Правильный ответ: {fb[3]}. {fb[4]}")
-    st.caption("Курс будет расширяться: новые темы и дополнительные упражнения добавляются отдельными уроками.")
+    st.divider()
+    st.markdown("### Создать новые упражнения с Gemini")
+    with st.form("gemini_grammar_form"):
+        ai_level=st.selectbox("Уровень",["A1","A2","B1","B2"],key="ai_grammar_level")
+        ai_count=st.slider("Количество новых заданий",3,15,8,key="ai_grammar_count")
+        ai_type=st.selectbox("Формат",["Смешанные задания","Выбор ответа","Вставить пропущенное слово","Перевод RU → EN","Исправить ошибку","Построить предложение"],key="ai_grammar_type")
+        generate_grammar=st.form_submit_button("Сгенерировать упражнения Gemini",type="primary")
+    if generate_grammar:
+        with st.spinner("Gemini готовит новые задания..."):
+            generated, err = grammar_exercise(lesson["title"],ai_level,ai_count,ai_type)
+        if err: st.error(err)
+        else:
+            st.session_state["gemini_grammar_result"]=generated
+    if st.session_state.get("gemini_grammar_result"):
+        st.markdown(st.session_state["gemini_grammar_result"])
+    st.caption("Встроенные задания выше — базовые. Gemini создаёт дополнительные варианты по выбранной теме.")
 
 elif section == "Жизненные ситуации":
     st.subheader("Английский для реальной жизни")
@@ -415,6 +431,56 @@ elif section == "Жизненные ситуации":
     if isinstance(feedback, (tuple, list)) and len(feedback) >= 3 and feedback[0] == topic and feedback[1] == qidx:
         st.info(f"Образец: {reply} — {reply_ru}")
         st.write("Твой ответ: " + (str(feedback[2]).strip() or "Ответ не введён."))
+
+elif section == "AI-наставник":
+    st.subheader("AI-наставник Gemini")
+    st.write("Проверка свободных ответов и реалистичная разговорная практика. Gemini отвечает по-английски и объясняет по-русски.")
+    st.markdown("### Проверь свой английский")
+    with st.form("gemini_check_form"):
+        check_topic=st.text_input("Тема", "Present Simple")
+        check_level=st.selectbox("Твой уровень",["A1","A2","B1","B2"],key="gemini_check_level")
+        check_question=st.text_area("Задание", "Переведи: Я работаю каждый день.")
+        check_answer=st.text_area("Твой ответ")
+        check_expected=st.text_input("Образец ответа (необязательно)")
+        submit_check=st.form_submit_button("Проверить мой ответ")
+    if submit_check:
+        with st.spinner("Gemini проверяет ответ..."):
+            result, err=check_english(check_topic,check_level,check_question,check_answer,check_expected)
+        if err: st.error(err)
+        else: st.session_state["gemini_check_result"]=result
+    if st.session_state.get("gemini_check_result"):
+        st.markdown(st.session_state["gemini_check_result"])
+    st.divider()
+    st.markdown("### Разговор с реальным собеседником")
+    role=st.selectbox("Выбери собеседника",["Работодатель на собеседовании","Начальник на работе","Коллега","Продавец в магазине","Арендодатель жилья","Сотрудник аэропорта","Врач","Официант"])
+    role_level=st.selectbox("Сложность разговора",["A1 — простой","A2 — базовый","B1 — уверенный","B2 — продвинутый"],key="gemini_role_level")
+    if "gemini_dialogue" not in st.session_state: st.session_state.gemini_dialogue=[]
+    for msg in st.session_state.gemini_dialogue:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+    user_msg=st.chat_input("Напиши собеседнику по-английски...")
+    if user_msg:
+        st.session_state.gemini_dialogue.append({"role":"user","content":user_msg})
+        history="\n".join(("Ученик: " if x["role"]=="user" else "Собеседник: ")+x["content"] for x in st.session_state.gemini_dialogue[-12:])
+        with st.spinner("Собеседник отвечает..."):
+            answer,err=roleplay_reply(role,role_level,history,user_msg)
+        if err:
+            st.error(err)
+        else:
+            st.session_state.gemini_dialogue.append({"role":"assistant","content":answer})
+            st.rerun()
+    if st.button("Начать новый диалог"):
+        st.session_state.gemini_dialogue=[]
+        st.rerun()
+    st.divider()
+    st.markdown("### Примеры для слов")
+    words_for_examples=st.text_input("Введи слова через запятую",placeholder="apply for a job, reliable, improve")
+    ex_level=st.selectbox("Уровень примеров",["A1","A2","B1","B2"],key="gemini_vocab_level")
+    if st.button("Создать примеры слов"):
+        with st.spinner("Gemini составляет примеры..."):
+            result,err=create_vocabulary_examples(words_for_examples,ex_level)
+        if err: st.error(err)
+        else: st.markdown(result)
 
 elif section == "Конструктор заданий":
     st.subheader("Конструктор собственных заданий")
