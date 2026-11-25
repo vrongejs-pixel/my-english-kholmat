@@ -6,17 +6,12 @@ import streamlit as st
 APP_DIR = Path(__file__).parent
 DB_PATH = APP_DIR / "my_english_progress.db"
 
+from vocabulary_data import VOCABULARY
+
 BASE_WORDS = [
-    ("I", "я", "Местоимения"), ("you", "ты / вы", "Местоимения"),
-    ("he", "он", "Местоимения"), ("she", "она", "Местоимения"),
-    ("we", "мы", "Местоимения"), ("they", "они", "Местоимения"),
-    ("be", "быть", "Глаголы"), ("have", "иметь", "Глаголы"),
-    ("do", "делать", "Глаголы"), ("go", "идти / ехать", "Глаголы"),
-    ("work", "работать", "Глаголы"), ("live", "жить", "Глаголы"),
-    ("learn", "учить / изучать", "Глаголы"), ("speak", "говорить", "Глаголы"),
-    ("eat", "есть / кушать", "Глаголы"), ("drink", "пить", "Глаголы"),
-    ("house", "дом", "Существительные"), ("job", "работа / должность", "Существительные"),
-    ("time", "время", "Существительные"), ("day", "день", "Существительные"),
+    (word[0], word[1], category)
+    for category, words in VOCABULARY.items()
+    for word in words
 ]
 
 CATEGORIES = ["Существительные", "Глаголы", "Прилагательные", "Местоимения", "Наречия", "Предлоги", "Фразы", "Другое"]
@@ -117,6 +112,28 @@ SITUATIONS = {
 
 st.set_page_config(page_title="MY ENGLISH — Метод Холмата", page_icon="📘", layout="wide")
 
+
+st.markdown("""
+<style>
+:root { --brand:#2563eb; --brand-dark:#173b75; }
+[data-testid="stAppViewContainer"] { background: #f4f7fc; }
+[data-testid="stHeader"] { background: rgba(244,247,252,.92); }
+[data-testid="stSidebar"] { background: linear-gradient(180deg,#10294f 0%,#173b75 100%); }
+[data-testid="stSidebar"] * { color: #f4f8ff !important; }
+[data-testid="stSidebar"] [data-testid="stRadio"] label { padding: .35rem .55rem; border-radius: .55rem; }
+.block-container { max-width: 1240px; padding-top: 2rem; padding-bottom: 3rem; }
+h1 { color:#15345f; letter-spacing:-.04em; font-weight:800; }
+h2,h3 { color:#183b68; font-weight:750; }
+div[data-testid="stMetric"] { background:#fff; border:1px solid #e4eaf3; border-radius:16px; padding:16px; box-shadow:0 3px 14px rgba(22,48,87,.05); }
+.stButton > button { border-radius:11px; min-height:2.65rem; font-weight:650; border:1px solid #d8e2f0; }
+.stButton > button[kind="primary"] { background:#2563eb; border-color:#2563eb; }
+div[data-testid="stForm"], div[data-testid="stExpander"] { background:#fff; border:1px solid #e4eaf3; border-radius:14px; padding:12px; }
+div[data-testid="stTextInput"] input, div[data-testid="stTextArea"] textarea { border-radius:10px; }
+div[data-testid="stProgress"] > div > div { background:#2563eb; }
+</style>
+""", unsafe_allow_html=True)
+
+
 def connect():
     return sqlite3.connect(DB_PATH)
 
@@ -194,43 +211,64 @@ elif section == "Карточки слов":
         did=next((i for i,n in decks if n==name),None)
         words=get_words(did) if did else []
     direction=st.radio("Лицевая сторона",["Английский → Русский","Русский → Английский","Смешанный режим"],horizontal=True,key="flash_direction")
-    if not words:
-        st.warning("В сборнике пока нет слов. Добавь их в разделе «Мои сборники».")
+    if source=="Базовый словарь A1":
+        categories=st.multiselect("Группы слов",list(VOCABULARY.keys()),default=list(VOCABULARY.keys()),key="flash_categories")
+        selected=[(i,*word) for i,(category,items) in enumerate(VOCABULARY.items()) if category in categories for word in items]
+        words=selected
     else:
-        signature=(source,direction)
+        words=[(row[0],row[1],row[2],"","") for row in words]
+    if not words:
+        st.warning("Выбери хотя бы одну группу или добавь слова в свой сборник.")
+    else:
+        signature=(source,direction,tuple(st.session_state.get("flash_categories",[])))
         if st.session_state.get("flash_signature")!=signature:
             st.session_state.flash_signature=signature
             st.session_state.card_index=0
             st.session_state.card_revealed=False
         st.session_state.card_index%=len(words)
         w=words[st.session_state.card_index]
-        actual= random.choice(["Английский → Русский","Русский → Английский"]) if direction=="Смешанный режим" else direction
-        front,back=(w[1],w[2]) if actual=="Английский → Русский" else (w[2],w[1])
-        st.caption(f"Направление: {actual}")
+        # Fix the mixed direction for the current card; do not randomize it on reruns.
+        if st.session_state.get("flash_card_signature") != (signature,st.session_state.card_index):
+            actual=random.choice(["Английский → Русский","Русский → Английский"]) if direction=="Смешанный режим" else direction
+            st.session_state.flash_actual_direction=actual
+            st.session_state.flash_card_signature=(signature,st.session_state.card_index)
+        actual=st.session_state.flash_actual_direction
+        english,russian=w[1],w[2]
+        pronunciation=w[3] if len(w)>3 else ""
+        example=w[4] if len(w)>4 else ""
+        example_ru=w[5] if len(w)>5 else ""
+        front,back=(english,russian) if actual=="Английский → Русский" else (russian,english)
+        st.caption(f"Направление: {actual} · Группа: {w[3] if len(w)==4 else 'Словарь'}")
         st.progress((st.session_state.card_index+1)/len(words),text=f"Карточка {st.session_state.card_index+1} из {len(words)}")
-        st.markdown(f"""<div style="border:1px solid #8b9aaa;border-radius:20px;padding:48px 16px;text-align:center;margin:16px 0;background:var(--secondary-background-color)">
-        <div style="font-size:13px;opacity:.7">НАЖМИ, ЧТОБЫ ВСПОМНИТЬ ПЕРЕВОД</div>
-        <div style="font-size:42px;font-weight:700;margin:24px 0">{front}</div>
-        <div style="font-size:24px;min-height:30px">{back if st.session_state.card_revealed else "••••••••"}</div></div>""",unsafe_allow_html=True)
+        st.markdown(f"""<div style="background:linear-gradient(135deg,#ffffff 0%,#edf4ff 100%);border:1px solid #d9e5f5;border-radius:22px;padding:44px 20px;text-align:center;margin:16px 0;box-shadow:0 12px 30px rgba(26,60,110,.08)">
+        <div style="font-size:12px;letter-spacing:.14em;color:#64748b;font-weight:700">MY ENGLISH · VOCABULARY</div>
+        <div style="font-size:38px;color:#173b75;font-weight:800;margin:24px 0">{front}</div>
+        <div style="font-size:22px;color:#2563eb;min-height:30px">{back if st.session_state.card_revealed else "Нажми «Показать ответ»"}</div>
+        </div>""",unsafe_allow_html=True)
         if not st.session_state.card_revealed:
-            if st.button("🔄 Перевернуть карточку",type="primary",use_container_width=True):
+            if st.button("Показать ответ",type="primary",use_container_width=True):
                 st.session_state.card_revealed=True
                 st.rerun()
         else:
+            if pronunciation: st.write(f"**Произношение:** {pronunciation}")
+            if example: st.write(f"**Пример:** {example}")
+            if example_ru: st.caption(example_ru)
             a,b=st.columns(2)
             if a.button("✓ Знаю",type="primary",use_container_width=True):
                 st.session_state.known_count+=1
                 st.session_state.card_index=(st.session_state.card_index+1)%len(words)
                 st.session_state.card_revealed=False
+                st.session_state.flash_card_signature=None
                 st.rerun()
             if b.button("↻ Повторить",use_container_width=True):
-                st.session_state.repeat_words.append((w[1],w[2]))
+                st.session_state.repeat_words.append((english,russian))
                 st.session_state.card_index=(st.session_state.card_index+1)%len(words)
                 st.session_state.card_revealed=False
+                st.session_state.flash_card_signature=None
                 st.rerun()
         st.caption(f"Знаю: {st.session_state.known_count} · На повторение: {len(st.session_state.repeat_words)}")
         if st.session_state.repeat_words:
-            with st.expander("Список слов для повторения"):
+            with st.expander("Слова для повторения"):
                 for en,ru in st.session_state.repeat_words:
                     st.write(f"**{en}** — {ru}")
 
