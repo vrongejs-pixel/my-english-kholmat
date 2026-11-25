@@ -372,26 +372,186 @@ elif section == "Проверка слов":
             st.session_state.test_word=random.choice(BASE_WORDS); st.session_state.test_feedback=None; st.rerun()
 
 elif section == "Грамматика":
-    st.subheader("Курс грамматики")
-    st.write("Выбирай тему, изучай правило и выполняй упражнения. Начинаем с A1 и постепенно усложняем.")
+    st.subheader("Курс грамматики — Метод Холмата")
+    st.write("Сначала тематические слова, затем правило и большая практика. Задания можно проходить по порядку или выбирать нужный тип.")
     lesson_names=[f"{x['level']} · {x['title']}" for x in GRAMMAR]
-    idx=st.selectbox("Тема урока",range(len(GRAMMAR)),format_func=lambda i:lesson_names[i])
+    idx=st.selectbox("Тема урока",range(len(GRAMMAR)),format_func=lambda i:lesson_names[i],key="grammar_lesson")
     lesson=GRAMMAR[idx]
-    st.markdown("### Правило")
+
+    GRAMMAR_VOCAB = {
+        0: [("ready","готовый","I am ready.","Я готов."),("tired","уставший","She is tired.","Она устала."),("at work","на работе","They are at work.","Они на работе."),("at home","дома","He is at home.","Он дома."),("busy","занятый","We are busy.","Мы заняты."),("happy","счастливый","You are happy.","Ты счастлив."),("from Uzbekistan","из Узбекистана","I am from Uzbekistan.","Я из Узбекистана."),("a student","студент","He is a student.","Он студент."),("a driver","водитель","She is a driver.","Она водитель."),("here","здесь","It is here.","Это здесь.")],
+        1: [("I","я","I work here.","Я работаю здесь."),("you","ты / вы","You speak English.","Ты говоришь по-английски."),("he","он","He lives here.","Он живёт здесь."),("she","она","She works today.","Она сегодня работает."),("it","оно / это","It is new.","Это новое."),("we","мы","We study English.","Мы изучаем английский."),("they","они","They are ready.","Они готовы."),("my","мой","My job is good.","Моя работа хорошая."),("his","его","His car is new.","Его машина новая."),("their","их","Their house is big.","Их дом большой.")],
+        2: [("a car","машина","I have a car.","У меня есть машина."),("a job","работа","She has a job.","У неё есть работа."),("a family","семья","We have a family.","У нас есть семья."),("time","время","They have time.","У них есть время."),("a phone","телефон","He has a phone.","У него есть телефон."),("a passport","паспорт","I have a passport.","У меня есть паспорт."),("a room","комната","She has a room.","У неё есть комната."),("a question","вопрос","You have a question.","У тебя есть вопрос."),("money","деньги","We have money.","У нас есть деньги."),("a brother","брат","He has a brother.","У него есть брат.")],
+        3: [("work","работать","I work every day.","Я работаю каждый день."),("live","жить","She lives in Tashkent.","Она живёт в Ташкенте."),("speak","говорить","They speak English.","Они говорят по-английски."),("start","начинать","He starts at eight.","Он начинает в восемь."),("finish","заканчивать","We finish at six.","Мы заканчиваем в шесть."),("need","нуждаться","I need help.","Мне нужна помощь."),("like","нравиться","She likes tea.","Ей нравится чай."),("go","ходить / ехать","They go to work.","Они ходят на работу."),("drive","водить","He drives a car.","Он водит машину."),("study","учиться","You study English.","Ты изучаешь английский.")],
+        4: [("working","работающий / работающий сейчас","I am working now.","Я сейчас работаю."),("cooking","готовящий","She is cooking dinner.","Она готовит ужин."),("waiting","ожидающий","They are waiting.","Они ждут."),("studying","изучающий","We are studying English.","Мы изучаем английский."),("driving","ведущий машину","He is driving.","Он ведёт машину."),("reading","читающий","I am reading a book.","Я читаю книгу."),("sleeping","спящий","The child is sleeping.","Ребёнок спит."),("talking","разговаривающий","You are talking.","Ты разговариваешь."),("cleaning","убирающий","She is cleaning the room.","Она убирает комнату."),("coming","приходящий","They are coming.","Они идут сюда.")],
+        5: [("yesterday","вчера","I worked yesterday.","Я работал вчера."),("last week","на прошлой неделе","We travelled last week.","Мы путешествовали на прошлой неделе."),("went","ходил / поехал","She went home.","Она пошла домой."),("saw","увидел","He saw his friend.","Он увидел своего друга."),("bought","купил","I bought a phone.","Я купил телефон."),("came","пришёл","They came early.","Они пришли рано."),("called","позвонил","You called me.","Ты мне позвонил."),("worked","работал","He worked on Monday.","Он работал в понедельник."),("had","имел / был","We had time.","У нас было время."),("did","сделал","She did the work.","Она выполнила работу.")],
+        6: [("tomorrow","завтра","I will work tomorrow.","Я буду работать завтра."),("next week","на следующей неделе","We will travel next week.","Мы поедем на следующей неделе."),("call","звонить","She will call you.","Она тебе позвонит."),("help","помогать","I will help you.","Я помогу тебе."),("come","приходить","He will come later.","Он придёт позже."),("start","начинать","They will start soon.","Они скоро начнут."),("finish","заканчивать","We will finish tomorrow.","Мы закончим завтра."),("learn","учить","You will learn English.","Ты выучишь английский."),("buy","покупать","I will buy a ticket.","Я куплю билет."),("meet","встречать","She will meet us.","Она встретит нас.")]
+    }
+    words=GRAMMAR_VOCAB[idx]
+    st.markdown("### 1. Тематический словарь")
+    st.caption(f"Слова и выражения для этой темы: {len(words)}. Нажми на слово, чтобы открыть перевод и пример.")
+    for en,ru,example,example_ru in words:
+        with st.expander(en):
+            st.write(f"**Перевод:** {ru}")
+            st.write(f"**Пример:** {example}")
+            st.caption(example_ru)
+
+    st.markdown("### 2. Грамматическое правило")
     st.write(lesson["rule"])
     st.markdown("### Примеры")
-    for ex in lesson["examples"]: st.write("• "+ex)
+    for ex in lesson["examples"]:
+        st.write("• "+ex)
+
+    # Банк тренировок: исходные задания урока плюс вариативные упражнения на основе уже объяснённой лексики.
+    base_tasks=[{"kind":"Выбор формы","q":q,"opts":opts,"answer":correct,"why":why} for q,opts,correct,why in lesson["tasks"]]
+    subject_sets={
+        0:[("I","am"),("he","is"),("she","is"),("it","is"),("we","are"),("you","are"),("they","are")],
+        1:[("I","I"),("you","you"),("he","he"),("she","she"),("it","it"),("we","we"),("they","they")],
+        2:[("I","have"),("you","have"),("we","have"),("they","have"),("he","has"),("she","has"),("it","has")],
+        3:[("I","work"),("you","work"),("we","work"),("they","work"),("he","works"),("she","works"),("it","works")],
+        4:[("I","am"),("you","are"),("we","are"),("they","are"),("he","is"),("she","is"),("it","is")],
+        5:[("I","worked"),("you","worked"),("we","worked"),("they","worked"),("he","worked"),("she","worked"),("it","worked")],
+        6:[("I","will"),("you","will"),("we","will"),("they","will"),("he","will"),("she","will"),("it","will")]
+    }
+    subjects=subject_sets[idx]
+    generated=[]
+    for n in range(100):
+        subject,form=subjects[n % len(subjects)]
+        vocab=words[(n*7 + n//len(subjects)) % len(words)]
+        en,ru,example,example_ru=vocab
+        if idx==0:
+            sentence=f"{subject.capitalize()} ___ {['ready','busy','at work','at home','happy'][n%5]}."
+            answer=form
+            opts=["am","is","are"]
+            why=f"С местоимением {subject} используется форма {form}."
+        elif idx==1:
+            sentence=f"Выбери местоимение для «{ru}» в предложении: ___ work here."
+            answer=subject
+            opts=["I","he","she","we","they","you"]
+            why=f"Правильное местоимение: {subject}."
+        elif idx==2:
+            sentence=f"{subject.capitalize()} ___ {['a car','a job','time','a passport','a question'][n%5]}."
+            answer=form
+            opts=["have","has"]
+            why=f"С {subject} используется {form}."
+        elif idx==3:
+            verb,base=[("work","work"),("live","live"),("speak","speak"),("start","start"),("need","need")][n%5]
+            answer=base+"s" if subject in ("he","she","it") else base
+            sentence=f"{subject.capitalize()} ___ {['every day','at home','English','at eight','help'][n%5]}."
+            opts=[base,base+"s",base+"es"]
+            why=f"В Present Simple с {subject} добавляем -s/-es только для he/she/it."
+        elif idx==4:
+            verb=["work","cook","wait","study","drive"][n%5]
+            answer=verb+"ing"
+            sentence=f"{subject.capitalize()} {form} ___ now."
+            opts=[verb,answer,verb+"s"]
+            why="Present Continuous: am/is/are + глагол-ing."
+        elif idx==5:
+            pairs=[("work","worked"),("call","called"),("play","played"),("watch","watched"),("clean","cleaned")]
+            base,answer=pairs[n%len(pairs)]
+            sentence=f"{subject.capitalize()} ___ yesterday."
+            opts=[base,answer,answer+"ing"]
+            why="Для правильного глагола в Past Simple обычно добавляем -ed."
+        else:
+            verb=["work","call","help","come","start"][n%5]
+            answer="will"
+            sentence=f"{subject.capitalize()} ___ {verb} tomorrow."
+            opts=["will","is","did"]
+            why="Future Simple: will + начальная форма глагола."
+        generated.append({"kind":"Выбор формы","q":sentence,"opts":list(dict.fromkeys(opts)),"answer":answer,"why":why})
+    practice_types=["Выбор формы","Перевод на английский","Перевод на русский","Составление предложения","Исправление ошибки","Вопросительная форма","Отрицательная форма","Смешанная тренировка"]
+    chosen_type=st.selectbox("Тип упражнения",practice_types,key=f"grammar_type_{idx}")
+    pool=base_tasks + generated
+    # Каждый тип содержит 100 тренировочных карточек; задания выдаются по одной карточке с сохранением номера.
+    if "grammar_run" not in st.session_state:
+        st.session_state.grammar_run={}
+    run_key=f"{idx}:{chosen_type}"
+    if run_key not in st.session_state.grammar_run:
+        st.session_state.grammar_run[run_key]=0
+    number=st.session_state.grammar_run[run_key] % 100
+    if chosen_type=="Выбор формы":
+        task=generated[number]
+        question=task["q"]
+        answer_type="choice"
+    else:
+        sample=words[number % len(words)]
+        en,ru,example,example_ru=sample
+        subj,verb=subjects[number % len(subjects)]
+        if chosen_type=="Перевод на английский":
+            question=f"Переведи на английский: «{ru}»."
+            task={"answer":en,"why":f"{en} — {ru}."}
+            answer_type="text"
+        elif chosen_type=="Перевод на русский":
+            question=f"Переведи на русский: {en}."
+            task={"answer":ru,"why":f"{en} означает «{ru}»."}
+            answer_type="text"
+        elif chosen_type=="Составление предложения":
+            question=f"Составь предложение по образцу: {example_ru}."
+            task={"answer":example,"why":f"Образец: {example} — {example_ru}."}
+            answer_type="text"
+        elif chosen_type=="Исправление ошибки":
+            if idx==0: bad=f"{subj.capitalize()} are ready."; good=f"{subj.capitalize()} {verb} ready."
+            elif idx==2: bad=f"{subj.capitalize()} has a car."; good=f"{subj.capitalize()} {verb} a car."
+            elif idx==3: bad=f"{subj.capitalize()} work every day."; good=f"{subj.capitalize()} {verb} every day."
+            elif idx==4: bad=f"{subj.capitalize()} {verb} working now.".replace(f"{subj.capitalize()} {verb} working",f"{subj.capitalize()} {verb} working")
+            elif idx==5: bad=f"{subj.capitalize()} work yesterday."; good=f"{subj.capitalize()} worked yesterday."
+            elif idx==6: bad=f"{subj.capitalize()} will works tomorrow."; good=f"{subj.capitalize()} will work tomorrow."
+            else: bad=f"{subj.capitalize()} work here."; good=f"{subj.capitalize()} works here."
+            if idx==4: bad=f"{subj.capitalize()} {verb} work now."; good=f"{subj.capitalize()} {verb} working now."
+            question=f"Исправь ошибку: {bad}"
+            task={"answer":good,"why":f"Правильный вариант: {good}"}
+            answer_type="text"
+        elif chosen_type=="Вопросительная форма":
+            if idx==0: good=f"Is {subj} ready?" if subj in ("he","she","it") else f"Are {subj} ready?"
+            elif idx==2: good=f"Does {subj} have a car?" if subj in ("he","she","it") else f"Do {subj} have a car?"
+            elif idx==3: good=f"Does {subj} work every day?" if subj in ("he","she","it") else f"Do {subj} work every day?"
+            elif idx==4: good=f"Is {subj} working now?" if subj in ("he","she","it") else (f"Am {subj} working now?" if subj=="I" else f"Are {subj} working now?")
+            elif idx==5: good=f"Did {subj} work yesterday?"
+            elif idx==6: good=f"Will {subj} work tomorrow?"
+            else: good=f"Does {subj} work?"
+            question=f"Построй вопрос из слов: {subj} / work / every day (или now / yesterday / tomorrow по теме)."
+            task={"answer":good,"why":f"Правильный вопрос: {good}"}
+            answer_type="text"
+        elif chosen_type=="Отрицательная форма":
+            if idx==0: good=f"{subj.capitalize()} {verb} not ready."
+            elif idx==2: good=f"{subj.capitalize()} {'does' if subj in ('he','she','it') else 'do'} not have a car."
+            elif idx==3: good=f"{subj.capitalize()} {'does' if subj in ('he','she','it') else 'do'} not work every day."
+            elif idx==4: good=f"{subj.capitalize()} {verb} not working now."
+            elif idx==5: good=f"{subj.capitalize()} did not work yesterday."
+            elif idx==6: good=f"{subj.capitalize()} will not work tomorrow."
+            else: good=f"{subj.capitalize()} does not work."
+            question=f"Составь отрицательное предложение: {subj} / work / {['every day','now','yesterday','tomorrow'][idx%4]}."
+            task={"answer":good,"why":f"Правильный вариант: {good}"}
+            answer_type="text"
+        else:
+            question=f"Смешанное задание по теме «{lesson['title']}»: переведи и измени предложение по правилу. Подсказка: {example_ru}"
+            task={"answer":example,"why":f"Образец: {example} — {example_ru}."}
+            answer_type="text"
     st.divider()
-    st.markdown(f"### Упражнения · {len(lesson['tasks'])} заданий")
-    qidx=st.selectbox("Выбери задание",range(len(lesson["tasks"])),format_func=lambda i:f"Задание {i+1} из {len(lesson['tasks'])}")
-    q,opts,correct,explain=lesson["tasks"][qidx]
-    choice=st.radio(q,opts,key=f"gram_{idx}_{qidx}")
-    if st.button("Проверить грамматику",type="primary"):
-        st.session_state.grammar_feedback=(idx,qidx,choice==correct,correct,explain)
-    fb=st.session_state.grammar_feedback
-    if fb and fb[0:2]==(idx,qidx):
-        if fb[2]: st.success("Правильно! "+fb[4])
-        else: st.error(f"Неверно. Правильный ответ: {fb[3]}. {fb[4]}")
+    st.markdown(f"### 3. Практика: {chosen_type}")
+    st.progress((number+1)/100,text=f"Задание {number+1} из 100 в этом типе · 8 типов = 800 заданий на тему")
+    st.markdown(f"**{question if chosen_type!='Выбор формы' else task['q']}**")
+    if answer_type=="choice":
+        selected=st.radio("Выбери ответ",task["opts"],key=f"grammar_choice_{idx}_{chosen_type}_{number}")
+    else:
+        selected=st.text_input("Твой ответ",key=f"grammar_text_{idx}_{chosen_type}_{number}")
+    if st.button("Проверить ответ",type="primary",key=f"grammar_check_{idx}_{chosen_type}_{number}"):
+        expected=task["answer"]
+        if answer_type=="choice":
+            ok=selected.strip().casefold()==expected.casefold()
+        else:
+            normalize=lambda x:" ".join(str(x).strip().lower().replace(".","").replace("?","").split())
+            ok=normalize(selected)==normalize(expected)
+        st.session_state[f"grammar_feedback_{idx}_{chosen_type}_{number}"]=(ok,expected,task["why"])
+    feedback=st.session_state.get(f"grammar_feedback_{idx}_{chosen_type}_{number}")
+    if feedback:
+        if feedback[0]: st.success("Правильно! Отличная работа.")
+        else: st.error(f"Пока неверно. Правильный ответ: {feedback[1]}")
+        st.info(feedback[2])
+        if st.button("Следующее задание →",key=f"grammar_next_{idx}_{chosen_type}_{number}"):
+            st.session_state.grammar_run[run_key]=(number+1)%100
+            st.rerun()
+    st.caption("После 100 карточек можно снова пройти этот тип: порядок будет перемешан в следующих обновлениях банка. Ошибки разбираются с объяснением.")
 elif section == "Жизненные ситуации":
     st.subheader("Английский для реальной жизни")
     topic=st.selectbox("Выбери ситуацию",list(SITUATIONS.keys()))
