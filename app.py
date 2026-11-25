@@ -410,9 +410,11 @@ elif section == "Жизненные ситуации":
     user_translation=st.text_input("Напиши по-английски ответ из примера (можно своими словами)",key=f"situation_{topic}_{qidx}")
     if st.button("Показать образец и сравнить"):
         st.session_state.situation_feedback=(topic,qidx,user_translation)
-    if st.session_state.get("situation_feedback",("",-1,""))[:2]==(topic,qidx):
+    feedback = st.session_state.get("situation_feedback")
+    # Не предполагаем тип значения: Streamlit может сохранить старое состояние после обновления кода.
+    if isinstance(feedback, (tuple, list)) and len(feedback) >= 3 and feedback[0] == topic and feedback[1] == qidx:
         st.info(f"Образец: {reply} — {reply_ru}")
-        st.write("Твой ответ: "+(st.session_state.situation_feedback[2] or "Ответ не введён."))
+        st.write("Твой ответ: " + (str(feedback[2]).strip() or "Ответ не введён."))
 
 elif section == "Конструктор заданий":
     st.subheader("Конструктор собственных заданий")
