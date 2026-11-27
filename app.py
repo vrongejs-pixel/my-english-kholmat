@@ -10,7 +10,7 @@ DB_PATH = APP_DIR / "my_english_progress.db"
 
 from vocabulary_data import VOCABULARY
 from life_situations_data import JOB_INTERVIEW
-from grammar_course_data import ADVANCED_GRAMMAR, BASIC_GRAMMAR_DETAILS
+from grammar_course_data import ADVANCED_GRAMMAR, BASIC_GRAMMAR_DETAILS, BASIC_GRAMMAR_EXTRA
 
 CORE_VOCABULARY = json.loads((APP_DIR / "core_vocabulary.json").read_text(encoding="utf-8"))
 
@@ -488,66 +488,96 @@ elif section == "Грамматика":
                 st.rerun()
         st.caption("Количество заданий указано честно: банк этой темы содержит именно столько проверяемых заданий. Новые упражнения будут добавляться отдельными наборами, без искусственного повторения одних и тех же вопросов.")
     else:
-        lesson_names = [f"{x['level']} · {x['title']}" for x in GRAMMAR]
-        idx = st.selectbox("Тема урока", range(len(GRAMMAR)), format_func=lambda i: lesson_names[i], key="grammar_lesson")
-        lesson = GRAMMAR[idx]
-        GRAMMAR_VOCAB = {
-            0: [("ready","готовый","I am ready.","Я готов."),("tired","уставший","She is tired.","Она устала."),("at work","на работе","They are at work.","Они на работе."),("at home","дома","He is at home.","Он дома."),("busy","занятый","We are busy.","Мы заняты."),("happy","счастливый","You are happy.","Ты счастлив."),("from Uzbekistan","из Узбекистана","I am from Uzbekistan.","Я из Узбекистана."),("a student","студент","He is a student.","Он студент."),("a driver","водитель","She is a driver.","Она водитель."),("here","здесь","It is here.","Это здесь.")],
-            1: [("I","я","I work here.","Я работаю здесь."),("you","ты / вы","You speak English.","Ты говоришь по-английски."),("he","он","He lives here.","Он живёт здесь."),("she","она","She works today.","Она сегодня работает."),("it","оно / это","It is new.","Это новое."),("we","мы","We study English.","Мы изучаем английский."),("they","они","They are ready.","Они готовы."),("my","мой","My job is good.","Моя работа хорошая."),("his","его","His car is new.","Его машина новая."),("their","их","Their house is big.","Их дом большой.")],
-            2: [("a car","машина","I have a car.","У меня есть машина."),("a job","работа","She has a job.","У неё есть работа."),("a family","семья","We have a family.","У нас есть семья."),("time","время","They have time.","У них есть время."),("a phone","телефон","He has a phone.","У него есть телефон."),("a passport","паспорт","I have a passport.","У меня есть паспорт."),("a room","комната","She has a room.","У неё есть комната."),("a question","вопрос","You have a question.","У тебя есть вопрос."),("money","деньги","We have money.","У нас есть деньги."),("a brother","брат","He has a brother.","У него есть брат.")],
-            3: [("work","работать","I work every day.","Я работаю каждый день."),("live","жить","She lives in Tashkent.","Она живёт в Ташкенте."),("speak","говорить","They speak English.","Они говорят по-английски."),("start","начинать","He starts at eight.","Он начинает в восемь."),("finish","заканчивать","We finish at six.","Мы заканчиваем в шесть."),("need","нуждаться","I need help.","Мне нужна помощь."),("like","нравиться","She likes tea.","Ей нравится чай."),("go","ходить / ехать","They go to work.","Они ходят на работу."),("drive","водить","He drives a car.","Он водит машину."),("study","учиться","You study English.","Ты изучаешь английский.")],
-            4: [("working","работающий сейчас","I am working now.","Я сейчас работаю."),("cooking","готовящий","She is cooking dinner.","Она готовит ужин."),("waiting","ожидающий","They are waiting.","Они ждут."),("studying","изучающий","We are studying English.","Мы изучаем английский."),("driving","ведущий машину","He is driving.","Он ведёт машину."),("reading","читающий","I am reading a book.","Я читаю книгу."),("sleeping","спящий","The child is sleeping.","Ребёнок спит."),("talking","разговаривающий","You are talking.","Ты разговариваешь."),("cleaning","убирающий","She is cleaning the room.","Она убирает комнату."),("coming","приходящий","They are coming.","Они идут сюда.")],
-            5: [("yesterday","вчера","I worked yesterday.","Я работал вчера."),("last week","на прошлой неделе","We travelled last week.","Мы путешествовали на прошлой неделе."),("went","ходил / поехал","She went home.","Она пошла домой."),("saw","увидел","He saw his friend.","Он увидел своего друга."),("bought","купил","I bought a phone.","Я купил телефон."),("came","пришёл","They came early.","Они пришли рано."),("called","позвонил","You called me.","Ты мне позвонил."),("worked","работал","He worked on Monday.","Он работал в понедельник."),("had","имел / был","We had time.","У нас было время."),("did","сделал","She did the work.","Она выполнила работу.")],
-            6: [("tomorrow","завтра","I will work tomorrow.","Я буду работать завтра."),("next week","на следующей неделе","We will travel next week.","Мы поедем на следующей неделе."),("call","звонить","She will call you.","Она тебе позвонит."),("help","помогать","I will help you.","Я помогу тебе."),("come","приходить","He will come later.","Он придёт позже."),("start","начинать","They will start soon.","Они скоро начнут."),("finish","заканчивать","We will finish tomorrow.","Мы закончим завтра."),("learn","учить","You will learn English.","Ты выучишь английский."),("buy","покупать","I will buy a ticket.","Я куплю билет."),("meet","встречать","She will meet us.","Она встретит нас.")]
-        }
-        words = GRAMMAR_VOCAB[idx]
-        st.markdown("### 1. Тематический словарь")
-        st.caption(f"Слова и выражения для этой темы: {len(words)}.")
-        for en, ru, example, example_ru in words:
-            with st.expander(en):
-                st.write(f"**Перевод:** {ru}")
-                st.write(f"**Пример:** {example}")
-                st.caption(example_ru)
-        st.markdown("### 2. Подробное объяснение правила")
-        detail = BASIC_GRAMMAR_DETAILS[idx]
+        basic_lessons = GRAMMAR + BASIC_GRAMMAR_EXTRA
+        lesson_names = [f"{x['level']} · {x['title']}" for x in basic_lessons]
+        idx = st.selectbox("Тема урока", range(len(basic_lessons)), format_func=lambda i: lesson_names[i], key="grammar_lesson")
+        lesson = basic_lessons[idx]
+        st.markdown(f"## {lesson['level']} · {lesson['title']}")
+        detail = BASIC_GRAMMAR_DETAILS[idx] if idx < len(GRAMMAR) else lesson
+        st.markdown("### 1. Подробное объяснение правила")
         st.write(detail["explanation"])
-        st.markdown("### 3. Примеры с переводом")
+        st.markdown("### 2. Формула и построение")
+        if detail.get("form"):
+            st.info(detail["form"])
+        st.markdown("### 3. Когда и зачем используется")
+        for use in detail.get("uses", []):
+            st.markdown("• " + use)
+        st.markdown("### 4. Примеры с переводом")
         for en, ru in detail["examples"]:
             with st.container(border=True):
                 st.markdown(f"**{en}**")
                 st.write(ru)
-        st.markdown("### 4. Типичные ошибки")
+        st.markdown("### 5. Типичные ошибки")
         for mistake in detail["mistakes"]:
             st.warning(mistake)
-        st.markdown("### 3. Практика")
-        st.caption("В базовом блоке доступны тренировочные задания. Число карточек не следует путать с числом уникальных примеров: часть начальных заданий использует повторяемые грамматические шаблоны.")
-        base_tasks = [{"q": q, "opts": opts, "answer": correct, "why": why} for q, opts, correct, why in lesson["tasks"]]
-        practice_types = ["Выбор формы", "Перевод на английский", "Перевод на русский", "Составление предложения", "Исправление ошибки", "Вопросительная форма", "Отрицательная форма", "Смешанная тренировка"]
-        chosen_type = st.selectbox("Тип упражнения", practice_types, key=f"grammar_type_{idx}")
-        st.markdown("#### Практика: " + chosen_type)
-        run_key = f"basic_grammar:{idx}:{chosen_type}"
-        if run_key not in st.session_state:
-            st.session_state[run_key] = 0
-        number = st.session_state[run_key] % len(base_tasks)
-        task = base_tasks[number]
-        st.caption(f"Задание {number + 1} из {len(base_tasks)} в выбранном наборе")
-        st.markdown(f"**{task['q']}**")
-        selected = st.radio("Выбери ответ", task["opts"], key=f"basic_grammar_answer_{idx}_{chosen_type}_{number}")
-        if st.button("Проверить ответ", type="primary", key=f"basic_grammar_check_{idx}_{chosen_type}_{number}"):
-            ok = selected.strip().casefold() == task["answer"].casefold()
-            st.session_state[f"basic_grammar_feedback_{idx}_{chosen_type}_{number}"] = (ok, task["answer"], task["why"])
-            save_result(task["answer"], "grammar_a1_a2", selected, ok)
-        feedback = st.session_state.get(f"basic_grammar_feedback_{idx}_{chosen_type}_{number}")
-        if feedback:
-            if feedback[0]:
-                st.success("Правильно!")
-            else:
-                st.error("Правильный ответ: " + feedback[1])
-            st.info(feedback[2])
-            if st.button("Следующее задание →", key=f"basic_grammar_next_{idx}_{chosen_type}_{number}"):
-                st.session_state[run_key] += 1
-                st.rerun()
-
+        st.markdown("### 6. Тематический словарь")
+        if idx < len(GRAMMAR):
+            words = GRAMMAR_VOCAB[idx]
+            for en, ru, example, example_ru in words:
+                with st.expander(en):
+                    st.write(f"**Перевод:** {ru}")
+                    st.write(f"**Пример:** {example}")
+                    st.caption(example_ru)
+            vocab_count = len(words)
+        else:
+            words = detail["vocabulary"]
+            vocab_count = len(words)
+            vocab_names = [f"{en} — {ru}" for en, ru in words]
+            vocab_idx = st.selectbox("Выбери слово или выражение", range(len(words)), format_func=lambda i: vocab_names[i], key=f"basic_vocab_{idx}")
+            st.success(f"{words[vocab_idx][0]} — {words[vocab_idx][1]}")
+            st.caption("Слова и выражения этой темы:")
+            st.write(" · ".join(en for en, _ in words))
+        st.caption(f"Слов и выражений в тематическом словаре: {vocab_count}")
+        st.markdown("### 7. Практика")
+        if idx < len(GRAMMAR):
+            tasks = [{"q": q, "opts": opts, "answer": correct, "why": why} for q, opts, correct, why in lesson["tasks"]]
+            practice_key = f"basic_grammar_index_{idx}"
+            if practice_key not in st.session_state:
+                st.session_state[practice_key] = 0
+            number = st.session_state[practice_key] % len(tasks)
+            task = tasks[number]
+            st.progress((number + 1) / len(tasks), text=f"Задание {number + 1} из {len(tasks)}")
+            st.markdown(f"**{task['q']}**")
+            answer = st.radio("Выбери ответ", task["opts"], key=f"basic_grammar_answer_{idx}_{number}")
+            if st.button("Проверить ответ", type="primary", key=f"basic_grammar_check_{idx}_{number}"):
+                ok = answer.strip().casefold() == task["answer"].casefold()
+                st.session_state[f"basic_grammar_feedback_{idx}_{number}"] = (ok, task["answer"], task["why"])
+                save_result(task["answer"], "grammar_a1_a2", answer, ok)
+            feedback = st.session_state.get(f"basic_grammar_feedback_{idx}_{number}")
+            if feedback:
+                if feedback[0]: st.success("Правильно!")
+                else: st.error("Правильный ответ: " + feedback[1])
+                st.info(feedback[2])
+                if st.button("Следующее задание →", key=f"basic_grammar_next_{idx}_{number}"):
+                    st.session_state[practice_key] = number + 1
+                    st.rerun()
+        else:
+            tasks = lesson["tasks"]
+            practice_key = f"basic_grammar_extra_index_{idx}"
+            if practice_key not in st.session_state:
+                st.session_state[practice_key] = 0
+            number = st.session_state[practice_key] % len(tasks)
+            question, correct_answer, explanation = tasks[number]
+            st.progress((number + 1) / len(tasks), text=f"Задание {number + 1} из {len(tasks)}")
+            st.markdown(f"**{question}**")
+            answer_key = f"basic_grammar_extra_answer_{idx}_{number}"
+            answer = st.text_input("Напиши ответ самостоятельно", key=answer_key)
+            if st.button("Проверить ответ", type="primary", key=f"basic_grammar_extra_check_{idx}_{number}"):
+                normalize = lambda value: " ".join(re.findall(r"[a-z0-9']+", str(value).casefold()))
+                accepted = [x.strip() for x in correct_answer.split(" / ")]
+                ok = bool(answer.strip()) and any(normalize(answer) == normalize(x) for x in accepted)
+                st.session_state[answer_key + "_feedback"] = (ok, correct_answer, explanation)
+                if answer.strip():
+                    save_result(correct_answer, "grammar_a1_a2", answer, ok)
+            feedback = st.session_state.get(answer_key + "_feedback")
+            if feedback:
+                if feedback[0]: st.success("Правильно!")
+                else: st.error("Правильный ответ: " + feedback[1])
+                st.info(feedback[2])
+                if st.button("Следующее задание →", key=f"basic_grammar_extra_next_{idx}_{number}"):
+                    st.session_state[practice_key] = number + 1
+                    st.rerun()
+        st.caption("В новых уроках банка A1–A2 по 10 самостоятельных заданий. После завершения набора можно повторить тему.")
     st.divider()
 elif section == "Жизненные ситуации":
     st.subheader("Жизненные ситуации — практический английский")
