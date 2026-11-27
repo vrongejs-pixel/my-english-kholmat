@@ -610,6 +610,129 @@ elif section == "Грамматика":
 elif section == "Жизненные ситуации":
     st.subheader("Жизненные ситуации — практический английский")
     st.caption("Изучай готовые жизненные ситуации или создавай собственные уроки с Gemini.")
+    with st.expander("＋ Создать свою ситуацию с Gemini", expanded=True):
+        with st.form("custom_situation_generator"):
+            scenario_request = st.text_area("Опиши ситуацию, которую хочешь изучить", placeholder="Например: Первый день на складе в Германии: знакомство с начальником, рабочий график, перерыв, правила и вопросы коллегам.", height=110)
+            col_a, col_b, col_c = st.columns(3)
+            scenario_level = col_a.selectbox("Уровень", ["A1","A2","B1","B2"], index=1)
+            scenario_focus = col_b.selectbox("Главный акцент", ["Слова и выражения","Диалог и разговор","Грамматика в контексте","Всё вместе"], index=3)
+            dialogue_turns = col_c.selectbox("Реплик в диалоге", [12,16,20,24,30], index=2)
+            create_situation = st.form_submit_button("Создать учебную ситуацию", type="primary")
+    if create_situation:
+        if not scenario_request.strip():
+            st.warning("Сначала опиши ситуацию.")
+        else:
+            with st.spinner("Gemini создаёт учебный материал..."):
+                try:
+                    lesson_data = generate_custom_situation(scenario_request.strip(), scenario_level, scenario_focus, dialogue_turns)
+                    with connect() as conn:
+                        conn.execute("INSERT INTO custom_situations(title,level,data_json) VALUES(?,?,?)",
+                                     (lesson_data["title"], scenario_level, json.dumps(lesson_data, ensure_ascii=False)))
+                    st.success("Ситуация создана и сохранена в твоих уроках.")
+                    st.rerun()
+                except Exception as exc:
+                    st.error(str(exc))
+    saved_situations = load_custom_situations()
+    if saved_situations:
+        st.markdown("### Мои созданные ситуации")
+        selected_id = st.selectbox("Выбери созданный урок", [row[0] for row in saved_situations],
+            format_func=lambda value: next(f"{row[1]} · {row[2]}" for row in saved_situations if row[0] == value),
+            key="my_custom_situation")
+        selected_row = next(row for row in saved_situations if row[0] == selected_id)
+        custom_lesson = json.loads(selected_row[3])
+        st.markdown(f"#### {custom_lesson['title']}")
+        st.caption(f"Уровень {selected_row[2]} · {custom_lesson.get('goal','')}")
+        custom_tabs = st.tabs(["Словарь","Диалог","Упражнения","Сборка предложений"])
+        with custom_tabs[0]:
+            vocabulary = custom_lesson["vocabulary"]
+            vocab_key = f"custom_vocab_index_{selected_id}"
+            if vocab_key not in st.session_state:
+                st.session_state[vocab_key] = 0
+            vocab_index = st.session_state[vocab_key] % len(vocabulary)
+            word = vocabulary[vocab_index]
+            st.caption(f"Слово {vocab_index+1} из {len(vocabulary)}")
+            st.markdown(f"### {word['en']}")
+            st.caption(word.get("ipa",""))
+            st.write(word["ru"])
+            st.info(f"{word['example']} — {word['example_ru']}")
+            if st.button("Следующее слово →", key=f"custom_vocab_next_{selected_id}"):
+                st.session_state[vocab_key] = vocab_index + 1
+                st.rerun()
+        with custom_tabs[1]:
+            for line in custom_lesson["dialogue"]:
+                with st.container(border=True):
+                    st.caption(line.get("speaker","Собеседник"))
+                    st.markdown(f"**{line['en']}**")
+                    st.write(line["ru"])
+        with custom_tabs[2]:
+            exercises = custom_lesson["exercises"]
+            ex_key = f"custom_ex_index_{selected_id}"
+            if ex_key not in st.session_state:
+                st.session_state[ex_key] = 0
+            ex_index = st.session_state[ex_key] % len(exercises)
+            exercise = exercises[ex_index]
+            st.caption(f"Задание {ex_index+1} из {len(exercises)}")
+            st.write(exercise["question"])
+            answer_key = f"custom_ex_answer_{selected_id}_{ex_index}"
+            answer = st.text_input("Твой ответ на английском", key=answer_key)
+            if st.button("Проверить", key=f"custom_ex_check_{selected_id}_{ex_index}"):
+                normalize = lambda value: " ".join(re.findall(r"[a-z0-9']+", str(value).casefold()))
+                ok = bool(answer.strip()) and normalize(answer) == normalize(exercise["answer"])
+                st.session_state[answer_key+"_result"] = (ok, exercise["answer"], exercise["why"])
+                if answer.strip():
+                    save_result(exercise["answer"], "custom_situation", answer, ok)
+            result = st.session_state.get(answer_key+"_result")
+            if result:
+                if result[0]: st.success("Правильно!")
+                else: st.error("Правильный ответ: " + result[1])
+                st.caption(result[2])
+            if st.button("Следующее упражнение →", key=f"custom_ex_next_{selected_id}"):
+                st.session_state[ex_key] = ex_index + 1
+                st.rerun()
+        with custom_tabs[3]:
+            pairs = custom_lesson["sentence_pairs"]
+            sentence_key = f"custom_sentence_index_{selected_id}"
+            if sentence_key not in st.session_state:
+                st.session_state[sentence_key] = 0
+            sentence_index = st.session_state[sentence_key] % len(pairs)
+            pair = pairs[sentence_index]
+            tokens = re.findall(r"[A-Za-z]+(?:['’][A-Za-z]+)?|[0-9]+|[^\\w\\s]", pair["en"])
+            order_key = f"custom_sentence_order_{selected_id}"
+            picked_key = f"custom_sentence_picked_{selected_id}"
+            if order_key not in st.session_state or st.session_state.get(order_key+"_source") != pair["en"]:
+                order = list(range(len(tokens)))
+                random.shuffle(order)
+                st.session_state[order_key] = order
+                st.session_state[picked_key] = []
+                st.session_state[order_key+"_source"] = pair["en"]
+                st.session_state.pop(order_key+"_result", None)
+            st.markdown(f"### {pair['ru']}")
+            st.caption(f"Предложение {sentence_index+1} из {len(pairs)}")
+            picked = st.session_state[picked_key]
+            st.write("Твоя сборка: " + " ".join(tokens[i] for i in picked))
+            word_cols = st.columns(4)
+            for wi, token_id in enumerate(st.session_state[order_key]):
+                if token_id not in picked and word_cols[wi % 4].button(tokens[token_id], key=f"{picked_key}_{token_id}"):
+                    st.session_state[picked_key].append(token_id)
+                    st.rerun()
+            left, middle, right = st.columns(3)
+            if left.button("Отменить", key=picked_key+"_undo", disabled=not picked):
+                st.session_state[picked_key] = picked[:-1]
+                st.rerun()
+            if middle.button("Проверить", key=picked_key+"_check", type="primary"):
+                assembled = " ".join(tokens[i] for i in picked)
+                normalize = lambda value: " ".join(re.findall(r"[a-z0-9']+", value.casefold()))
+                st.session_state[order_key+"_result"] = (normalize(assembled) == normalize(pair["en"]), pair["en"])
+            if right.button("Следующее →", key=picked_key+"_next"):
+                st.session_state[sentence_key] = sentence_index + 1
+                st.session_state.pop(order_key, None)
+                st.session_state.pop(picked_key, None)
+                st.session_state.pop(order_key+"_result", None)
+                st.rerun()
+            result = st.session_state.get(order_key+"_result")
+            if result:
+                if result[0]: st.success("Верно!")
+                else: st.error("Правильный вариант: " + result[1])
     st.markdown("### Готовая программа ситуаций")
     domains = {
         "Работа в Европе": ["Собеседование на работу"],
