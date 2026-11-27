@@ -459,7 +459,7 @@ elif section == "Грамматика":
         st.divider()
         st.markdown("### 7. Большая практика")
         st.caption("В этом уроке подготовлен набор заданий с ответами и объяснением. Проходи их по порядку; после каждого ответа разбирай правило.")
-        tasks = lesson["tasks"]
+        tasks = list(lesson["tasks"]) + [(f"Переведи на английский: {ru}", en, "Используй грамматическую конструкцию из этого урока и обрати внимание на порядок слов.") for en, ru in lesson["examples"]]
         practice_key = f"adv_grammar_index_{adv_idx}"
         if practice_key not in st.session_state:
             st.session_state[practice_key] = 0
@@ -486,7 +486,7 @@ elif section == "Грамматика":
             if st.button("Следующее задание →", key=f"adv_grammar_next_{adv_idx}_{task_index}"):
                 st.session_state[practice_key] = (task_index + 1) % len(tasks)
                 st.rerun()
-        st.caption("Количество заданий указано честно: банк этой темы содержит именно столько проверяемых заданий. Новые упражнения будут добавляться отдельными наборами, без искусственного повторения одних и тех же вопросов.")
+        st.caption(f"В этом уроке {len(tasks)} заданий: грамматические задачи и перевод новых примеров. После прохождения набора можно повторить тему.")
     else:
         basic_lessons = GRAMMAR + BASIC_GRAMMAR_EXTRA
         lesson_names = [f"{x['level']} · {x['title']}" for x in basic_lessons]
