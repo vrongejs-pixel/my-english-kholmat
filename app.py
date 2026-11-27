@@ -10,7 +10,7 @@ DB_PATH = APP_DIR / "my_english_progress.db"
 
 from vocabulary_data import VOCABULARY
 from life_situations_data import JOB_INTERVIEW
-from grammar_course_data import ADVANCED_GRAMMAR
+from grammar_course_data import ADVANCED_GRAMMAR, BASIC_GRAMMAR_DETAILS
 
 CORE_VOCABULARY = json.loads((APP_DIR / "core_vocabulary.json").read_text(encoding="utf-8"))
 
@@ -508,11 +508,17 @@ elif section == "Грамматика":
                 st.write(f"**Перевод:** {ru}")
                 st.write(f"**Пример:** {example}")
                 st.caption(example_ru)
-        st.markdown("### 2. Подробное правило")
-        st.write(lesson["rule"])
-        st.markdown("### Примеры")
-        for ex in lesson["examples"]:
-            st.write("• " + ex)
+        st.markdown("### 2. Подробное объяснение правила")
+        detail = BASIC_GRAMMAR_DETAILS[idx]
+        st.write(detail["explanation"])
+        st.markdown("### 3. Примеры с переводом")
+        for en, ru in detail["examples"]:
+            with st.container(border=True):
+                st.markdown(f"**{en}**")
+                st.write(ru)
+        st.markdown("### 4. Типичные ошибки")
+        for mistake in detail["mistakes"]:
+            st.warning(mistake)
         st.markdown("### 3. Практика")
         st.caption("В базовом блоке доступны тренировочные задания. Число карточек не следует путать с числом уникальных примеров: часть начальных заданий использует повторяемые грамматические шаблоны.")
         base_tasks = [{"q": q, "opts": opts, "answer": correct, "why": why} for q, opts, correct, why in lesson["tasks"]]
