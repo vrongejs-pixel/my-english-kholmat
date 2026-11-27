@@ -512,13 +512,19 @@ elif section == "Грамматика":
             st.warning(mistake)
         st.markdown("### 6. Тематический словарь")
         if idx < len(GRAMMAR):
-            words = GRAMMAR_VOCAB[idx]
-            for en, ru, example, example_ru in words:
+            # В первых семи уроках отдельного банка слов нет:
+            # используем проверенные выражения из подробных примеров урока.
+            words = detail.get("vocabulary") or detail.get("examples", [])
+            vocab_count = len(words)
+            for item in words:
+                en, ru = item[0], item[1]
                 with st.expander(en):
                     st.write(f"**Перевод:** {ru}")
-                    st.write(f"**Пример:** {example}")
-                    st.caption(example_ru)
-            vocab_count = len(words)
+                    if len(item) >= 4:
+                        st.write(f"**Пример:** {item[2]}")
+                        st.caption(item[3])
+                    else:
+                        st.caption("Выражение из примеров этого грамматического урока.")
         else:
             words = detail["vocabulary"]
             vocab_count = len(words)
