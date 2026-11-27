@@ -8,6 +8,7 @@ APP_DIR = Path(__file__).parent
 DB_PATH = APP_DIR / "my_english_progress.db"
 
 from vocabulary_data import VOCABULARY
+from life_situations_data import JOB_INTERVIEW
 
 CORE_VOCABULARY = json.loads((APP_DIR / "core_vocabulary.json").read_text(encoding="utf-8"))
 
@@ -554,33 +555,133 @@ elif section == "Грамматика":
             st.rerun()
     st.caption("После 100 карточек можно снова пройти этот тип: порядок будет перемешан в следующих обновлениях банка. Ошибки разбираются с объяснением.")
 elif section == "Жизненные ситуации":
-    st.subheader("Английский для реальной жизни")
-    topic=st.selectbox("Выбери ситуацию",list(SITUATIONS.keys()))
-    items=SITUATIONS[topic]
-    st.write("Изучи фразу, затем попробуй самостоятельно вспомнить ответ и проверить себя.")
-    qidx=st.selectbox("Выбери ситуацию внутри темы",range(len(items)),format_func=lambda i:f"Фраза {i+1} из {len(items)}")
-    en,ru,reply,reply_ru=items[qidx]
-    st.markdown("#### Что ты услышишь")
-    st.markdown(f"**{en}**")
-    st.write(ru)
-    st.markdown("#### Как можно ответить")
-    if st.button("Показать пример ответа"):
-        st.session_state.situation_reveal=(topic,qidx)
-    if st.session_state.get("situation_reveal")== (topic,qidx):
-        st.success(reply)
-        st.write(reply_ru)
-    st.divider()
-    st.markdown("#### Проверь понимание")
-    user_translation=st.text_input("Напиши по-английски ответ из примера (можно своими словами)",key=f"situation_{topic}_{qidx}")
-    if st.button("Показать образец и сравнить"):
-        st.session_state.situation_feedback=(topic,qidx,user_translation)
-    feedback = st.session_state.get("situation_feedback")
-    # Не предполагаем тип значения: Streamlit может сохранить старое состояние после обновления кода.
-    if isinstance(feedback, (tuple, list)) and len(feedback) >= 3 and feedback[0] == topic and feedback[1] == qidx:
-        st.info(f"Образец: {reply} — {reply_ru}")
-        st.write("Твой ответ: " + (str(feedback[2]).strip() or "Ответ не введён."))
+    st.subheader("Жизненные ситуации — практический английский")
+    st.caption("Основная программа будет расширяться: новые сферы жизни, ситуации и уровни добавляются постепенно.")
+    domains = {
+        "Работа в Европе": ["Собеседование на работу"],
+        "Повседневная жизнь": ["В магазине", "На улице", "В транспорте", "В ресторане"],
+        "Жильё и услуги": ["Аренда жилья"],
+        "Здоровье": ["У врача"],
+        "Путешествия": ["В аэропорту", "В гостинице"]
+    }
+    domain = st.selectbox("Сфера жизни", list(domains.keys()))
+    if domain == "Работа в Европе":
+        module = JOB_INTERVIEW
+        lesson_titles = [x["title"] for x in module["lessons"]]
+        lesson_index = st.selectbox("Ситуация", range(len(lesson_titles)), format_func=lambda i: lesson_titles[i], key="life_job_lesson")
+        lesson = module["lessons"][lesson_index]
+        st.markdown(f"### {module['title']} · {lesson['title']}")
+        st.caption(f"Уровень: {module['level']}")
+        st.info("Цель общения: " + lesson["goal"])
 
-elif section == "Конструктор заданий":
+        tabs = st.tabs(["Словарь и произношение", "Карточки", "Грамматика", "Упражнения", "Диалог", "Разговорная практика"])
+        with tabs[0]:
+            st.markdown("#### Словарь ситуации")
+            st.write("Сначала изучи слова. Нажми 🔊, чтобы услышать произношение.")
+            for wi, word in enumerate(lesson["vocabulary"]):
+                en, ipa, ru, example, example_ru = word
+                c1, c2, c3 = st.columns([2, 1.4, 1])
+                c1.markdown(f"**{en}**")
+                c1.caption(f"{example} — {example_ru}")
+                c2.write(ipa)
+                c2.write(ru)
+                if c3.button("🔊 Слушать", key=f"life_tts_{lesson_index}_{wi}"):
+                    import streamlit.components.v1 as components
+                    safe_word = json.dumps(en)
+                    components.html(f"""<script>
+                    const u = new SpeechSynthesisUtterance({safe_word});
+                    u.lang = 'en-GB'; u.rate = 0.82;
+                    window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
+                    </script>""", height=0)
+            st.caption("Озвучка использует голос браузера. Голосовой ввод и оценка произношения будут добавлены отдельным этапом после проверки совместимости.")
+        with tabs[1]:
+            st.markdown("#### Карточки для запоминания")
+            card_key = f"life_card_{lesson_index}"
+            if card_key not in st.session_state:
+                st.session_state[card_key] = 0
+            ci = st.session_state[card_key] % len(lesson["vocabulary"])
+            en, ipa, ru, example, example_ru = lesson["vocabulary"][ci]
+            st.markdown(f"### {en}")
+            st.caption(ipa)
+            reveal_key = f"life_card_reveal_{lesson_index}_{ci}"
+            if st.button("Показать перевод", key=reveal_key):
+                st.session_state[reveal_key+"_shown"] = True
+            if st.session_state.get(reveal_key+"_shown"):
+                st.success(ru)
+                st.write(example)
+                st.caption(example_ru)
+            a, b = st.columns(2)
+            if a.button("← Предыдущее", key=f"life_card_prev_{lesson_index}"):
+                st.session_state[card_key] = (ci - 1) % len(lesson["vocabulary"])
+                st.rerun()
+            if b.button("Следующее →", key=f"life_card_next_{lesson_index}"):
+                st.session_state[card_key] = (ci + 1) % len(lesson["vocabulary"])
+                st.rerun()
+        with tabs[2]:
+            g = lesson["grammar"]
+            st.markdown("#### " + g["title"])
+            st.write(g["rule"])
+            for pattern, sample, translation in g["patterns"]:
+                st.markdown(f"**{pattern}**")
+                st.write(f"{sample} — {translation}")
+            st.warning("Типичная ошибка: " + g["common_error"])
+        with tabs[3]:
+            st.markdown("#### Проверь понимание и закрепи материал")
+            for ei, ex in enumerate(lesson["exercises"]):
+                st.markdown(f"**Задание {ei+1}. {ex['question']}**")
+                ek = f"life_ex_{lesson_index}_{ei}"
+                if ex["type"] == "choice":
+                    answer = st.radio("Выбери ответ", ex["options"], key=ek, index=None)
+                else:
+                    answer = st.text_input("Твой ответ", key=ek)
+                if st.button("Проверить", key=ek+"_check"):
+                    if answer is None or not str(answer).strip():
+                        st.warning("Сначала введи ответ.")
+                    else:
+                        norm = lambda x: " ".join(str(x).strip().lower().rstrip(".!?").split())
+                        correct = norm(answer) == norm(ex["answer"])
+                        st.session_state[ek+"_result"] = (correct, ex["answer"], ex["why"])
+                result = st.session_state.get(ek+"_result")
+                if result:
+                    if result[0]:
+                        st.success("Правильно!")
+                    else:
+                        st.error("Пока неверно. Образец: " + result[1])
+                    st.caption(result[2])
+                st.divider()
+        with tabs[4]:
+            st.markdown("#### Диалог на собеседовании")
+            for speaker, line, translation in lesson["dialogue"]:
+                with st.container(border=True):
+                    st.caption(speaker)
+                    st.markdown(f"**{line}**")
+                    st.write(translation)
+        with tabs[5]:
+            st.markdown("#### Твоя самостоятельная речь")
+            st.write(lesson["roleplay_question"])
+            response = st.text_area("Напиши свой ответ на английском", key=f"life_roleplay_{lesson_index}", height=150)
+            if st.button("Показать задание ещё раз", key=f"life_roleplay_prompt_{lesson_index}"):
+                st.info(lesson["roleplay_question"])
+            st.caption("Сначала попробуй ответить самостоятельно. На следующем этапе добавим интерактивный голосовой диалог и проверку ответов.")
+            if response.strip():
+                st.write(f"Количество слов в ответе: {len(response.split())}")
+    else:
+        legacy_topic_map = {
+            "В магазине": "В магазине", "На улице": "На улице",
+            "В транспорте": "В транспорте", "В ресторане": "В ресторане",
+            "Аренда жилья": "Аренда жилья", "У врача": "У врача",
+            "В аэропорту": "В аэропорту", "В гостинице": "В гостинице"
+        }
+        selected_topic = st.selectbox("Выбери конкретную ситуацию", legacy_topic_map.keys())
+        items = SITUATIONS[legacy_topic_map[selected_topic]]
+        for qi, (en, ru, reply, reply_ru) in enumerate(items):
+            with st.container(border=True):
+                st.markdown(f"**Собеседник:** {en}")
+                st.write(ru)
+                if st.button("Показать пример ответа", key=f"legacy_situation_{selected_topic}_{qi}"):
+                    st.success(reply)
+                    st.write(reply_ru)
+    elif section == "Конструктор заданий":
     st.subheader("Конструктор собственных заданий")
     st.write("Создавай свои вопросы и ответы по грамматике или жизненным ситуациям, сохраняй их и тренируйся.")
     with st.form("task_builder",clear_on_submit=True):
