@@ -723,7 +723,7 @@ elif section == "Жизненные ситуации":
                 st.session_state[build_key] = 0
             st.session_state[build_key] %= len(sentence_bank)
             current_en, current_ru = sentence_bank[st.session_state[build_key]]
-            tokens = re.findall(r"[A-Za-z]+(?:['’][A-Za-z]+)?|[0-9]+|[^\\w\\s]", current_en)
+            tokens = re.findall(r"[A-Za-z]+(?:['’][A-Za-z]+)?|[0-9]+|[^\w\s]", current_en)
             order_key = build_key + "_order"
             selected_key = build_key + "_selected"
             if order_key not in st.session_state or st.session_state.get(build_key + "_sentence") != current_en:
