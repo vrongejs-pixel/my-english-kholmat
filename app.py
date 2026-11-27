@@ -563,18 +563,34 @@ elif section == "Грамматика":
             if practice_key not in st.session_state:
                 st.session_state[practice_key] = 0
             number = st.session_state[practice_key] % len(tasks)
-            question, correct_answer, explanation = tasks[number]
+            task_data = tasks[number]
             st.progress((number + 1) / len(tasks), text=f"Задание {number + 1} из {len(tasks)}")
+            question = task_data[0]
             st.markdown(f"**{question}**")
             answer_key = f"basic_grammar_extra_answer_{idx}_{number}"
-            answer = st.text_input("Напиши ответ самостоятельно", key=answer_key)
-            if st.button("Проверить ответ", type="primary", key=f"basic_grammar_extra_check_{idx}_{number}"):
-                normalize = lambda value: " ".join(re.findall(r"[a-z0-9']+", str(value).casefold()))
-                accepted = [x.strip() for x in correct_answer.split(" / ")]
-                ok = bool(answer.strip()) and any(normalize(answer) == normalize(x) for x in accepted)
-                st.session_state[answer_key + "_feedback"] = (ok, correct_answer, explanation)
-                if answer.strip():
+            check_key = f"basic_grammar_extra_check_{idx}_{number}"
+
+            if len(task_data) == 4:
+                _, options, correct_answer, explanation = task_data
+                answer = st.radio("Выбери ответ", options, key=answer_key)
+                if st.button("Проверить ответ", type="primary", key=check_key):
+                    ok = answer.strip().casefold() == correct_answer.strip().casefold()
+                    st.session_state[answer_key + "_feedback"] = (ok, correct_answer, explanation)
                     save_result(correct_answer, "grammar_a1_a2", answer, ok)
+            elif len(task_data) == 3:
+                _, correct_answer, explanation = task_data
+                answer = st.text_input("Напиши ответ самостоятельно", key=answer_key)
+                if st.button("Проверить ответ", type="primary", key=check_key):
+                    normalize = lambda value: " ".join(re.findall(r"[a-z0-9']+", str(value).casefold()))
+                    accepted = [x.strip() for x in correct_answer.split(" / ")]
+                    ok = bool(answer.strip()) and any(normalize(answer) == normalize(x) for x in accepted)
+                    st.session_state[answer_key + "_feedback"] = (ok, correct_answer, explanation)
+                    if answer.strip():
+                        save_result(correct_answer, "grammar_a1_a2", answer, ok)
+            else:
+                st.error("Ошибка в структуре задания: ожидалось 3 или 4 элемента.")
+                st.stop()
+
             feedback = st.session_state.get(answer_key + "_feedback")
             if feedback:
                 if feedback[0]: st.success("Правильно!")
