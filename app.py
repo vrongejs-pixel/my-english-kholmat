@@ -1,5 +1,6 @@
 import json
 import random
+import re
 import sqlite3
 from pathlib import Path
 import streamlit as st
@@ -574,7 +575,7 @@ elif section == "Жизненные ситуации":
         st.caption(f"Уровень: {module['level']}")
         st.info("Цель общения: " + lesson["goal"])
 
-        tabs = st.tabs(["Словарь и произношение", "Карточки", "Русский → английский", "Грамматика", "Упражнения", "Диалог", "Разговорная практика"])
+        tabs = st.tabs(["Словарь и произношение", "Карточки", "Русский → английский", "Грамматика", "Упражнения", "Диалог", "Разговорная практика", "Сборка предложений"])
         with tabs[0]:
             st.markdown("#### Словарь ситуации")
             st.write("Сначала изучи слова. Нажми 🔊, чтобы услышать произношение.")
@@ -617,14 +618,6 @@ elif section == "Жизненные ситуации":
             if b.button("Следующее →", key=f"life_card_next_{lesson_index}"):
                 st.session_state[card_key] = (ci + 1) % len(lesson["vocabulary"])
                 st.rerun()
-        with tabs[2]:
-            g = lesson["grammar"]
-            st.markdown("#### " + g["title"])
-            st.write(g["rule"])
-            for pattern, sample, translation in g["patterns"]:
-                st.markdown(f"**{pattern}**")
-                st.write(f"{sample} — {translation}")
-            st.warning("Типичная ошибка: " + g["common_error"])
         with tabs[2]:
             st.markdown("#### Активное вспоминание: русский → английский")
             bank = lesson.get("vocabulary_bank", [])
@@ -712,6 +705,76 @@ elif section == "Жизненные ситуации":
             st.caption("Сначала попробуй ответить самостоятельно. На следующем этапе добавим интерактивный голосовой диалог и проверку ответов.")
             if response.strip():
                 st.write(f"Количество слов в ответе: {len(response.split())}")
+        with tabs[7]:
+            st.markdown("#### Собери английское предложение")
+            st.write("Прочитай предложение на русском и нажимай английские слова в правильном порядке. Так ты запоминаешь не отдельные слова, а готовые конструкции.")
+            sentence_bank = []
+            for item in lesson.get("vocabulary_bank", []):
+                sentence_bank.append((item[4], item[5]))
+            for item in lesson.get("vocabulary", []):
+                sentence_bank.append((item[3], item[4]))
+            for speaker, line, translation in lesson.get("dialogue", []):
+                sentence_bank.append((line, translation))
+            for pattern, sample, translation in lesson.get("grammar", {}).get("patterns", []):
+                sentence_bank.append((sample, translation))
+            sentence_bank = list(dict.fromkeys((en, ru) for en, ru in sentence_bank if en and ru))
+            build_key = f"sentence_builder_{lesson_index}"
+            if build_key not in st.session_state:
+                st.session_state[build_key] = 0
+            st.session_state[build_key] %= len(sentence_bank)
+            current_en, current_ru = sentence_bank[st.session_state[build_key]]
+            tokens = re.findall(r"[A-Za-z]+(?:['’][A-Za-z]+)?|[0-9]+|[^\\w\\s]", current_en)
+            order_key = build_key + "_order"
+            selected_key = build_key + "_selected"
+            if order_key not in st.session_state or st.session_state.get(build_key + "_sentence") != current_en:
+                shuffled = list(range(len(tokens)))
+                random.shuffle(shuffled)
+                st.session_state[order_key] = shuffled
+                st.session_state[selected_key] = []
+                st.session_state[build_key + "_sentence"] = current_en
+                st.session_state.pop(build_key + "_feedback", None)
+            st.markdown("### " + current_ru)
+            st.caption(f"Предложение {st.session_state[build_key] + 1} из {len(sentence_bank)}")
+            st.markdown("**Твой вариант:**")
+            chosen_ids = st.session_state[selected_key]
+            if chosen_ids:
+                st.markdown(" ".join(tokens[i] for i in chosen_ids))
+            else:
+                st.info("Нажимай на слова ниже, чтобы собрать предложение.")
+            word_cols = st.columns(4)
+            for pos, token_id in enumerate(st.session_state[order_key]):
+                if token_id not in chosen_ids:
+                    if word_cols[pos % 4].button(tokens[token_id], key=f"{build_key}_word_{token_id}"):
+                        st.session_state[selected_key].append(token_id)
+                        st.session_state.pop(build_key + "_feedback", None)
+                        st.rerun()
+            left, middle, right = st.columns(3)
+            if left.button("Отменить последнее", key=build_key + "_undo", disabled=not chosen_ids):
+                st.session_state[selected_key] = chosen_ids[:-1]
+                st.session_state.pop(build_key + "_feedback", None)
+                st.rerun()
+            if middle.button("Очистить", key=build_key + "_clear"):
+                st.session_state[selected_key] = []
+                st.session_state.pop(build_key + "_feedback", None)
+                st.rerun()
+            if right.button("Проверить", type="primary", key=build_key + "_check"):
+                assembled = " ".join(tokens[i] for i in chosen_ids)
+                normalize_sentence = lambda value: " ".join(re.findall(r"[a-z0-9']+", value.casefold()))
+                is_correct = normalize_sentence(assembled) == normalize_sentence(current_en)
+                st.session_state[build_key + "_feedback"] = (is_correct, current_en)
+            feedback = st.session_state.get(build_key + "_feedback")
+            if feedback:
+                if feedback[0]:
+                    st.success("Правильно! Ты собрал предложение.")
+                else:
+                    st.error("Пока неверно. Правильный вариант: " + feedback[1])
+                st.caption(current_en + " — " + current_ru)
+            if st.button("Следующее предложение →", type="primary", key=build_key + "_next"):
+                st.session_state[build_key] += 1
+                st.session_state.pop(order_key, None)
+                st.session_state.pop(selected_key, None)
+                st.session_state.pop(build_key + "_feedback", None)
+                st.rerun()
     else:
         legacy_topic_map = {
             "В магазине": "В магазине", "На улице": "На улице",
