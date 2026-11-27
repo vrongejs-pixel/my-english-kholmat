@@ -666,29 +666,38 @@ elif section == "Жизненные ситуации":
                 st.write(f"{sample} — {translation}")
             st.warning("Типичная ошибка: " + g["common_error"])
         with tabs[4]:
-            st.markdown("#### Проверь понимание и закрепи материал")
-            for ei, ex in enumerate(lesson["exercises"]):
-                st.markdown(f"**Задание {ei+1}. {ex['question']}**")
-                ek = f"life_ex_{lesson_index}_{ei}"
-                if ex["type"] == "choice":
-                    answer = st.radio("Выбери ответ", ex["options"], key=ek, index=None)
+            st.markdown("#### Упражнения — одно задание за раз")
+            exercise_list = lesson["exercises"]
+            exercise_index_key = f"life_ex_index_{lesson_index}"
+            if exercise_index_key not in st.session_state:
+                st.session_state[exercise_index_key] = 0
+            st.session_state[exercise_index_key] %= len(exercise_list)
+            ei = st.session_state[exercise_index_key]
+            ex = exercise_list[ei]
+            st.caption(f"Задание {ei + 1} из {len(exercise_list)}")
+            st.markdown(f"**{ex['question']}**")
+            ek = f"life_ex_{lesson_index}_{ei}"
+            if ex["type"] == "choice":
+                answer = st.radio("Выбери ответ", ex["options"], key=ek, index=None)
+            else:
+                answer = st.text_input("Твой ответ", key=ek)
+            if st.button("Проверить", type="primary", key=ek+"_check"):
+                if answer is None or not str(answer).strip():
+                    st.warning("Сначала введи ответ.")
                 else:
-                    answer = st.text_input("Твой ответ", key=ek)
-                if st.button("Проверить", key=ek+"_check"):
-                    if answer is None or not str(answer).strip():
-                        st.warning("Сначала введи ответ.")
-                    else:
-                        norm = lambda x: " ".join(str(x).strip().lower().rstrip(".!?").split())
-                        correct = norm(answer) == norm(ex["answer"])
-                        st.session_state[ek+"_result"] = (correct, ex["answer"], ex["why"])
-                result = st.session_state.get(ek+"_result")
-                if result:
-                    if result[0]:
-                        st.success("Правильно!")
-                    else:
-                        st.error("Пока неверно. Образец: " + result[1])
-                    st.caption(result[2])
-                st.divider()
+                    norm = lambda x: " ".join(str(x).strip().lower().rstrip(".!?").split())
+                    correct = norm(answer) == norm(ex["answer"])
+                    st.session_state[ek+"_result"] = (correct, ex["answer"], ex["why"])
+            result = st.session_state.get(ek+"_result")
+            if result:
+                if result[0]:
+                    st.success("Правильно!")
+                else:
+                    st.error("Пока неверно. Правильный вариант: " + result[1])
+                st.caption(result[2])
+            if st.button("Следующее упражнение →", key=f"life_ex_next_{lesson_index}"):
+                st.session_state[exercise_index_key] = (ei + 1) % len(exercise_list)
+                st.rerun()
         with tabs[5]:
             st.markdown("#### Диалог на собеседовании")
             for speaker, line, translation in lesson["dialogue"]:
