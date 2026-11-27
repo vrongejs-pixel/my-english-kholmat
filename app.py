@@ -574,7 +574,7 @@ elif section == "Жизненные ситуации":
         st.caption(f"Уровень: {module['level']}")
         st.info("Цель общения: " + lesson["goal"])
 
-        tabs = st.tabs(["Словарь и произношение", "Карточки", "Грамматика", "Упражнения", "Диалог", "Разговорная практика"])
+        tabs = st.tabs(["Словарь и произношение", "Карточки", "Русский → английский", "Грамматика", "Упражнения", "Диалог", "Разговорная практика"])
         with tabs[0]:
             st.markdown("#### Словарь ситуации")
             st.write("Сначала изучи слова. Нажми 🔊, чтобы услышать произношение.")
@@ -625,7 +625,54 @@ elif section == "Жизненные ситуации":
                 st.markdown(f"**{pattern}**")
                 st.write(f"{sample} — {translation}")
             st.warning("Типичная ошибка: " + g["common_error"])
+        with tabs[2]:
+            st.markdown("#### Активное вспоминание: русский → английский")
+            bank = lesson.get("vocabulary_bank", [])
+            if not bank:
+                st.info("Словарь для письменной проверки пока готовится.")
+            else:
+                categories = list(dict.fromkeys(item[0] for item in bank))
+                chosen_category = st.selectbox("Категория слов", ["Все категории"] + categories, key=f"life_ru_category_{lesson_index}")
+                filtered_bank = [item for item in bank if chosen_category == "Все категории" or item[0] == chosen_category]
+                prompt_key = f"life_ru_prompt_{lesson_index}_{chosen_category}"
+                if prompt_key not in st.session_state or st.session_state.get(f"{prompt_key}_advance", False):
+                    st.session_state[prompt_key] = random.choice(filtered_bank)
+                    st.session_state[f"{prompt_key}_advance"] = False
+                    st.session_state.pop(f"{prompt_key}_feedback", None)
+                item = st.session_state[prompt_key]
+                category, english, ipa, russian, example, example_ru = item
+                st.caption(f"Категория: {category}")
+                st.markdown(f"## {russian}")
+                answer_key = f"life_ru_answer_{lesson_index}_{chosen_category}"
+                typed = st.text_input("Напиши английское слово или выражение", key=answer_key)
+                if st.button("Проверить перевод", type="primary", key=f"life_ru_check_{lesson_index}_{chosen_category}"):
+                    normalize = lambda value: " ".join(str(value).strip().casefold().replace(".", "").replace(",", "").split())
+                    ok = normalize(typed) == normalize(english)
+                    st.session_state[f"{prompt_key}_feedback"] = (ok, english, ipa, example, example_ru)
+                    save_result(english, "ru_to_en", typed, ok)
+                feedback = st.session_state.get(f"{prompt_key}_feedback")
+                if feedback:
+                    if feedback[0]:
+                        st.success("Правильно! Ты самостоятельно вспомнил английский вариант.")
+                    else:
+                        st.error("Пока неверно. Правильный ответ: " + feedback[1])
+                    st.caption(feedback[2])
+                    st.write(feedback[3])
+                    st.caption(feedback[4])
+                    if st.button("Следующее слово →", key=f"life_ru_next_{lesson_index}_{chosen_category}"):
+                        st.session_state[f"{prompt_key}_advance"] = True
+                        st.session_state.pop(answer_key, None)
+                        st.rerun()
+                st.caption(f"В этой тренировке доступно слов: {len(filtered_bank)}. Ошибки и правильные ответы записываются в историю повторения.")
         with tabs[3]:
+            g = lesson["grammar"]
+            st.markdown("#### " + g["title"])
+            st.write(g["rule"])
+            for pattern, sample, translation in g["patterns"]:
+                st.markdown(f"**{pattern}**")
+                st.write(f"{sample} — {translation}")
+            st.warning("Типичная ошибка: " + g["common_error"])
+        with tabs[4]:
             st.markdown("#### Проверь понимание и закрепи материал")
             for ei, ex in enumerate(lesson["exercises"]):
                 st.markdown(f"**Задание {ei+1}. {ex['question']}**")
@@ -649,14 +696,14 @@ elif section == "Жизненные ситуации":
                         st.error("Пока неверно. Образец: " + result[1])
                     st.caption(result[2])
                 st.divider()
-        with tabs[4]:
+        with tabs[5]:
             st.markdown("#### Диалог на собеседовании")
             for speaker, line, translation in lesson["dialogue"]:
                 with st.container(border=True):
                     st.caption(speaker)
                     st.markdown(f"**{line}**")
                     st.write(translation)
-        with tabs[5]:
+        with tabs[6]:
             st.markdown("#### Твоя самостоятельная речь")
             st.write(lesson["roleplay_question"])
             response = st.text_area("Напиши свой ответ на английском", key=f"life_roleplay_{lesson_index}", height=150)
