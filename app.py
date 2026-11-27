@@ -681,7 +681,7 @@ elif section == "Жизненные ситуации":
                 if st.button("Показать пример ответа", key=f"legacy_situation_{selected_topic}_{qi}"):
                     st.success(reply)
                     st.write(reply_ru)
-    elif section == "Конструктор заданий":
+elif section == "Конструктор заданий":
     st.subheader("Конструктор собственных заданий")
     st.write("Создавай свои вопросы и ответы по грамматике или жизненным ситуациям, сохраняй их и тренируйся.")
     with st.form("task_builder",clear_on_submit=True):
