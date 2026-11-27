@@ -548,64 +548,6 @@ elif section == "Грамматика":
                 st.session_state[run_key] += 1
                 st.rerun()
 
-       if st.button("Проверить", key=f"custom_ex_check_{selected_id}_{ei}"):
-                norm = lambda value: " ".join(re.findall(r"[a-z0-9']+", value.casefold()))
-                correct = bool(answer.strip()) and norm(answer) == norm(ex["answer"])
-                st.session_state[answer_key+"_result"] = (correct, ex["answer"], ex["why"])
-                if answer.strip():
-                    save_result(ex["answer"], "custom_situation", answer, correct)
-            result = st.session_state.get(answer_key+"_result")
-            if result:
-                if result[0]: st.success("Правильно!")
-                else: st.error("Правильный ответ: " + result[1])
-                st.caption(result[2])
-            if st.button("Следующее упражнение →", key=f"custom_ex_next_{selected_id}"):
-                st.session_state[ei_key] = (ei+1) % len(exercises)
-                st.rerun()
-        with lesson_tabs[3]:
-            pairs = lesson_data["sentence_pairs"]
-            si_key = f"custom_sentence_index_{selected_id}"
-            if si_key not in st.session_state:
-                st.session_state[si_key] = 0
-            si = st.session_state[si_key] % len(pairs)
-            pair = pairs[si]
-            words = re.findall(r"[A-Za-z]+(?:['’][A-Za-z]+)?|[0-9]+|[^\\w\\s]", pair["en"])
-            order_key = f"custom_sentence_order_{selected_id}"
-            picked_key = f"custom_sentence_picked_{selected_id}"
-            if order_key not in st.session_state or st.session_state.get(order_key+"_source") != pair["en"]:
-                order = list(range(len(words)))
-                random.shuffle(order)
-                st.session_state[order_key] = order
-                st.session_state[picked_key] = []
-                st.session_state[order_key+"_source"] = pair["en"]
-                st.session_state.pop(order_key+"_result", None)
-            st.markdown(f"### {pair['ru']}")
-            st.caption(f"Предложение {si+1} из {len(pairs)}")
-            picked = st.session_state[picked_key]
-            st.write("Твоя сборка: " + " ".join(words[i] for i in picked))
-            word_cols = st.columns(4)
-            for wi, token_id in enumerate(st.session_state[order_key]):
-                if token_id not in picked and word_cols[wi % 4].button(words[token_id], key=f"{picked_key}_{token_id}"):
-                    st.session_state[picked_key].append(token_id)
-                    st.rerun()
-            a,b,d = st.columns(3)
-            if a.button("Отменить", key=picked_key+"_undo", disabled=not picked):
-                st.session_state[picked_key] = picked[:-1]
-                st.rerun()
-            if b.button("Проверить", key=picked_key+"_check", type="primary"):
-                assembled = " ".join(words[i] for i in picked)
-                norm = lambda value: " ".join(re.findall(r"[a-z0-9']+", value.casefold()))
-                st.session_state[order_key+"_result"] = (norm(assembled) == norm(pair["en"]), pair["en"])
-            if d.button("Следующее →", key=picked_key+"_next"):
-                st.session_state[si_key] = (si+1) % len(pairs)
-                st.session_state.pop(order_key, None)
-                st.session_state.pop(picked_key, None)
-                st.session_state.pop(order_key+"_result", None)
-                st.rerun()
-            result = st.session_state.get(order_key+"_result")
-            if result:
-                if result[0]: st.success("Верно! Предложение собрано.")
-                else: st.error("Правильный вариант: " + result[1])
     st.divider()
 elif section == "Жизненные ситуации":
     st.subheader("Жизненные ситуации — практический английский")
